@@ -1,0 +1,31 @@
+/* /ci extras. The control-room look itself (navy glass, cyan hairlines, grid, glow) now comes from the shared
+   tokens in globals.css / widgets.css; this file only adds what is specific to the runners page. */
+.ci-room { --st-run: #f59e0b; --st-you: #f59e0b; }  /* busy / queued read as amber on this page */
+.dark .ci-room { --st-run: #fbbf24; --st-you: #fbbf24; --st-done: #2dd4bf; }
+.ci-room section svg.ic { color: var(--accent); }
+.ci-room li { border-color: var(--line); }
+.ci-room li:hover { box-shadow: inset 2px 0 0 var(--accent), 0 1px 0 var(--glow); }
+.dark .ci-room pre { background: rgba(3, 9, 20, 0.7) !important; border-color: rgba(56, 189, 248, 0.2) !important; color: #cfe6f5; }
+.ci-room [role="tab"][aria-selected="true"] { box-shadow: 0 0 14px var(--glow); }
+.ci-room select { background: var(--card); }
+.ci-room option { background: #0a1a2f; color: #e2f3ff; }
+
+/* runner cards: a ring in the state hue, a soft pulse while busy */
+.ci-card-busy { border-color: rgba(245, 158, 11, 0.6) !important; box-shadow: 0 0 18px rgba(245, 158, 11, 0.14), inset 0 0 0 1px rgba(245, 158, 11, 0.1); animation: ci-pulse 2.4s ease-in-out infinite; }
+.ci-card-idle { border-color: rgba(20, 184, 166, 0.45) !important; box-shadow: 0 0 14px rgba(20, 184, 166, 0.1); }
+@keyframes ci-pulse { 50% { box-shadow: 0 0 26px rgba(245, 158, 11, 0.3), inset 0 0 0 1px rgba(245, 158, 11, 0.2); } }
+.ci-ring { position: relative; display: inline-flex; height: 14px; width: 14px; align-items: center; justify-content: center; }
+.ci-ring::after { content: ""; position: absolute; inset: -4px; border-radius: 999px; border: 1.5px solid currentColor; opacity: 0.5; }
+.ci-ring.on::after { animation: ci-ring 2s ease-out infinite; }
+@keyframes ci-ring { from { transform: scale(0.6); opacity: 0.7; } to { transform: scale(1.5); opacity: 0; } }
+.ci-glow-amber { color: #f59e0b; }
+.ci-glow-teal { color: #14b8a6; }
+@media (prefers-reduced-motion: reduce) { .ci-card-busy, .ci-ring.on::after { animation: none; } }
+
+/* The waiting hourglass: glow, a slow flip, falling sand. */
+.ci-hourglass svg { filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.55)) drop-shadow(0 0 16px rgba(34, 211, 238, 0.25)); }
+.ci-hourglass-body { transform-origin: 24px 24px; animation: ci-hg-flip 2.4s ease-in-out infinite; }
+.ci-sand-stream { animation: ci-hg-stream 0.6s linear infinite; }
+@keyframes ci-hg-flip { 0%, 80% { transform: rotate(0deg); } 100% { transform: rotate(180deg); } }
+@keyframes ci-hg-stream { to { stroke-dashoffset: -4; } }
+@media (prefers-reduced-motion: reduce) { .ci-hourglass-body, .ci-sand-stream { animation: none; } }

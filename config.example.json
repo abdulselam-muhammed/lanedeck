@@ -1,0 +1,38 @@
+{
+  "server": { "port": 4280, "host": "127.0.0.1", "allowedHosts": [], "accessToken": null, "allowUnauthenticatedRemote": false },
+  "tools": { "gh": null, "git": null },
+  "machine": {
+    "wslDistro": null,
+    "ciContainer": null,
+    "runnerImage": "myoung34/github-runner",
+    "runnerName": null,
+    "teamName": null,
+    "localLabel": "This PC (WSL)",
+    "thresholds": { "ram": 90, "cpu": 85, "disk": 95, "pagedPoolGB": 4 },
+    "remoteThresholds": { "ram": 90, "cpu": 85, "disk": 95 },
+    "machines": [{ "id": "build-box", "label": "build-box", "sshAlias": "my-ssh-alias" }]
+  },
+  "github": { "org": "your-org", "rateBudgetPerHour": 600 },
+  "projects": [
+    {
+      "id": "my-project",
+      "name": "My project",
+      "repoPath": "/home/me/code/my-project",
+      "repo": "your-org/my-project",
+      "defaultBranch": "main",
+      "gateCheck": null,
+      "claudeProjectDir": null,
+      "me": "your-github-login",
+      "reviewers": [{ "login": "reviewer-login", "name": "Reviewer", "role": "owner" }],
+      "boardFiles": [],
+      "reviewMarkers": {
+        "fail": ["CHANGES REQUESTED", "NOT PASS"],
+        "ask": ["what is missing", "\\bFIX\\b"],
+        "pass": ["^\\W*(APPROVE[DS]?|LGTM)"]
+      },
+      "holds": { "123": "waiting for the owner" },
+      "profile": null
+    }
+  ],
+  "ui": { "lang": "en", "dir": "ltr", "title": "selam-deck", "brand": null, "runnerPrefix": null }
+}

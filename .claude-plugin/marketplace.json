@@ -1,0 +1,14 @@
+{
+  "name": "selam-deck",
+  "description": "Claude Code plugin for the selam-deck project protocol",
+  "owner": {
+    "name": "Abdulselam Muhammed"
+  },
+  "plugins": [
+    {
+      "name": "selam-deck",
+      "source": "./plugin",
+      "description": "Keep a project's work map, task files and questions in .selam-deck/ so the selam-deck dashboard can follow your AI work"
+    }
+  ]
+}
