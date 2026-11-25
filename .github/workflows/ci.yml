@@ -26,3 +26,8 @@ jobs:
       - name: server log
         if: always()
         run: cat "$RUNNER_TEMP/s.log" || true
+      - name: package contents
+        run: |
+          node scripts/scrub-build.mjs
+          npm pack --dry-run --json > "$RUNNER_TEMP/pack.json"
+          node -e 'const f=require(process.argv[1])[0].files.map(x=>x.path);const bad=f.filter(p=>/^\.next\/(cache|trace|types)|\.map$|machines\.json$/.test(p));if(bad.length||!f.includes("bin/lanedeck.mjs")||!f.includes(".next/BUILD_ID")){console.error("bad package",bad);process.exit(1)}console.log(f.length+" files")' "$RUNNER_TEMP/pack.json"

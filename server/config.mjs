@@ -204,6 +204,7 @@ function build() {
   // Deprecated env overrides, kept so old launch scripts still work.
   const p0 = c.projects[0];
   if (process.env.PORT) { const n = Number(process.env.PORT); need(Number.isInteger(n) && n > 0 && n < 65536, "PORT (env)", "must be a port number"); c.server.port = n; }
+  if (process.env.LANEDECK_HOST) { need(process.env.LANEDECK_HOST.trim() !== "", "LANEDECK_HOST (env)", "must be a non-empty host"); c.server.host = process.env.LANEDECK_HOST.trim(); }
   if (process.env.INBOX_DIR) p0.inboxDir = process.env.INBOX_DIR;
   if (process.env.CLAUDE_PROJECT_DIR) p0.claudeProjectDir = process.env.CLAUDE_PROJECT_DIR;
 

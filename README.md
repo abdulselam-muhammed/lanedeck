@@ -2,7 +2,7 @@
 
 A local control room for working with AI coding agents: CI runners, machine load, Claude Code agents, GitHub PRs and a per-project work map, in one dashboard.
 
-![lanedeck machine overview](docs/screenshots/machine-overview.png)
+![lanedeck machine overview](https://raw.githubusercontent.com/abdulselam-muhammed/lanedeck/main/docs/screenshots/machine-overview.png)
 
 ## Features
 
@@ -27,7 +27,7 @@ A local control room for working with AI coding agents: CI runners, machine load
 
 More views are in [Screenshots](#screenshots).
 
-## Quick start
+## Install
 
 Requirements:
 
@@ -35,6 +35,19 @@ Requirements:
 - `git`
 - the [GitHub CLI](https://cli.github.com/) (`gh`), logged in (`gh auth login`): the PR board and runners read GitHub through it
 - optional: WSL with docker (Windows) or a native `docker` (Linux/macOS) for the local CI runners panel; `ssh` for remote machines
+
+Run it without installing, or install it once:
+
+```bash
+npx lanedeck
+# or
+npm i -g lanedeck
+lanedeck
+```
+
+Open <http://127.0.0.1:4280>. Options: `--port <n>`, `--host <addr>` (a non-loopback host needs `server.accessToken` in the config), `--help`. The environment variables `PORT`, `LANEDECK_HOST` and `LANEDECK_CONFIG` work too.
+
+### From source
 
 ```bash
 git clone https://github.com/abdulselam-muhammed/lanedeck.git
@@ -44,7 +57,7 @@ npm run build
 npm start
 ```
 
-Open <http://127.0.0.1:4280>. `npm run dev` runs a development server instead. (`npx lanedeck` is planned for a later release.)
+Open <http://127.0.0.1:4280>. `npm run dev` runs a development server instead.
 
 The deck starts with defaults and no project. Open Settings, then Projects, then Add project, pick a local folder and it fills in the repo, branch and CI checks.
 
@@ -58,7 +71,7 @@ One JSON file, deep-merged over generic built-in defaults:
 | Linux | `$XDG_CONFIG_HOME/lanedeck/config.json` or `~/.config/lanedeck/config.json` |
 | macOS | `~/.config/lanedeck/config.json` |
 
-Set `LANEDECK_CONFIG` to use another file (it must exist). Copy [`config.example.json`](config.example.json) to the path above and edit it, or use the **Settings** page, which edits the same file (atomically, keeping the last 20 backups). A bad value stops the server with a message naming the key.
+Set `LANEDECK_CONFIG` to use another file (it must exist). Copy [`config.example.json`](https://github.com/abdulselam-muhammed/lanedeck/blob/main/config.example.json) to the path above and edit it, or use the **Settings** page, which edits the same file (atomically, keeping the last 20 backups). A bad value stops the server with a message naming the key.
 
 | Key | Meaning |
 |---|---|
@@ -85,7 +98,7 @@ lanedeck follows the work of each project through a small folder of plain Markdo
   inbox/        git-ignored; one task file per task, with steps and questions
 ```
 
-The human and the AI write these files; the dashboard reads them and, only after you confirm, writes the setup files (`PROTOCOL.md`, `inbox/00-setup.md`, a line in `.gitignore`, and an optional block in `AGENTS.md` or `CLAUDE.md`). The full contract is in [docs/PROTOCOL.md](docs/PROTOCOL.md).
+The human and the AI write these files; the dashboard reads them and, only after you confirm, writes the setup files (`PROTOCOL.md`, `inbox/00-setup.md`, a line in `.gitignore`, and an optional block in `AGENTS.md` or `CLAUDE.md`). The full contract is in [docs/PROTOCOL.md](https://github.com/abdulselam-muhammed/lanedeck/blob/main/docs/PROTOCOL.md).
 
 ## Use with your AI
 
@@ -96,8 +109,8 @@ The human and the AI write these files; the dashboard reads them and, only after
   /plugin install lanedeck@lanedeck
   ```
 
-  To try it without installing: `claude --plugin-dir ./plugin`. Details in [plugin/README.md](plugin/README.md).
-- **Any other AI** (Cursor, Codex, Gemini and so on): they cannot use the plugin. Open the project's setup task in the Inbox and press "Copy prompt (any AI)", then paste it into your AI. To make every session follow the protocol, press "Add lanedeck instructions to AGENTS.md / CLAUDE.md", which adds one marked block ([templates/AGENTS-block.md](templates/AGENTS-block.md)). Nothing is written into a project before you confirm.
+  To try it without installing: `claude --plugin-dir ./plugin`. Details in [plugin/README.md](https://github.com/abdulselam-muhammed/lanedeck/blob/main/plugin/README.md).
+- **Any other AI** (Cursor, Codex, Gemini and so on): they cannot use the plugin. Open the project's setup task in the Inbox and press "Copy prompt (any AI)", then paste it into your AI. To make every session follow the protocol, press "Add lanedeck instructions to AGENTS.md / CLAUDE.md", which adds one marked block ([templates/AGENTS-block.md](https://github.com/abdulselam-muhammed/lanedeck/blob/main/templates/AGENTS-block.md)). Nothing is written into a project before you confirm.
 
 ## Security model
 
@@ -123,11 +136,11 @@ A missing tool (`powershell.exe`, `wsl.exe`, `docker`, `ssh`) switches that one 
 
 | | |
 |---|---|
-| ![Machine overview, light](docs/screenshots/machine-overview-light.png) | ![Project overview](docs/screenshots/project-overview.png) |
-| ![Work map](docs/screenshots/work-map.png) | ![Questions](docs/screenshots/questions.png) |
-| ![Inbox task](docs/screenshots/inbox-task.png) | ![Merge board](docs/screenshots/pr-board.png) |
-| ![Runners](docs/screenshots/runners.png) | ![Machine load](docs/screenshots/load.png) |
-| ![Settings](docs/screenshots/settings.png) | ![Skills](docs/screenshots/skills.png) |
+| ![Machine overview, light](https://raw.githubusercontent.com/abdulselam-muhammed/lanedeck/main/docs/screenshots/machine-overview-light.png) | ![Project overview](https://raw.githubusercontent.com/abdulselam-muhammed/lanedeck/main/docs/screenshots/project-overview.png) |
+| ![Work map](https://raw.githubusercontent.com/abdulselam-muhammed/lanedeck/main/docs/screenshots/work-map.png) | ![Questions](https://raw.githubusercontent.com/abdulselam-muhammed/lanedeck/main/docs/screenshots/questions.png) |
+| ![Inbox task](https://raw.githubusercontent.com/abdulselam-muhammed/lanedeck/main/docs/screenshots/inbox-task.png) | ![Merge board](https://raw.githubusercontent.com/abdulselam-muhammed/lanedeck/main/docs/screenshots/pr-board.png) |
+| ![Runners](https://raw.githubusercontent.com/abdulselam-muhammed/lanedeck/main/docs/screenshots/runners.png) | ![Machine load](https://raw.githubusercontent.com/abdulselam-muhammed/lanedeck/main/docs/screenshots/load.png) |
+| ![Settings](https://raw.githubusercontent.com/abdulselam-muhammed/lanedeck/main/docs/screenshots/settings.png) | ![Skills](https://raw.githubusercontent.com/abdulselam-muhammed/lanedeck/main/docs/screenshots/skills.png) |
 
 ## Roadmap
 
@@ -138,8 +151,8 @@ A missing tool (`powershell.exe`, `wsl.exe`, `docker`, `ssh`) switches that one 
 
 ## Contributing
 
-Issues and pull requests are welcome. Before sending a change run `npm run typecheck`, `npm run lint`, `npm test` and `npm run check` (i18n and protocol checks). Every user-facing string goes through the dictionary in `server/i18n/areas/`, in English and Arabic. See [ARCHITECTURE.md](ARCHITECTURE.md) for how the code is laid out.
+Issues and pull requests are welcome. Before sending a change run `npm run typecheck`, `npm run lint`, `npm test` and `npm run check` (i18n and protocol checks). Every user-facing string goes through the dictionary in `server/i18n/areas/`, in English and Arabic. See [ARCHITECTURE.md](https://github.com/abdulselam-muhammed/lanedeck/blob/main/ARCHITECTURE.md) for how the code is laid out.
 
 ## License
 
-MIT, see [LICENSE](LICENSE). Third-party notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+MIT, see [LICENSE](https://github.com/abdulselam-muhammed/lanedeck/blob/main/LICENSE). Third-party notices: [THIRD_PARTY_NOTICES.md](https://github.com/abdulselam-muhammed/lanedeck/blob/main/THIRD_PARTY_NOTICES.md).

@@ -31,6 +31,8 @@ import { createGuard, refuseHttp, refuseSocket } from "./guard.mjs";
 import config, { configPath, getConfig, publicConfig, projectById, remoteAuthProblem } from "./config.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+// Where the runners / PR board keep their cache (<DATA_ROOT>/data/...). The npm launcher sets LANEDECK_DATA_DIR because an installed package folder may be read-only.
+const DATA_ROOT = process.env.LANEDECK_DATA_DIR || ROOT;
 const HOST = config.server.host;
 const PORT = config.server.port;
 const ALLOWED_HOSTS = config.server.allowedHosts;
@@ -55,7 +57,7 @@ const inbox = await import("./inbox.mjs");
 const FIRST = getConfig().projects[0].id;
 inbox.startFirst();
 const { createCi } = await import("./ci/http.mjs");
-const ci = createCi({ root: ROOT });
+const ci = createCi({ root: DATA_ROOT });
 // The runners summary rides the same SSE channel as the inbox (event `ci.runners`): published when the CI reader learns
 // something (debounced to <= 1 per 2 s) and every 30 s (time moves the numbers); skipped when unchanged.
 {
@@ -70,7 +72,7 @@ const ci = createCi({ root: ROOT });
   setTimeout(pushCi, 3000).unref?.();
 }
 const { createPrs } = await import("./prs/board.mjs");
-const prs = createPrs({ root: ROOT, firstId: FIRST, projectOf: projectById });
+const prs = createPrs({ root: DATA_ROOT, firstId: FIRST, projectOf: projectById });
 const { usage: githubUsage } = await import("./budget.mjs");
 const { createLoad } = await import("./load/load.mjs");
 const { features: platformFeatures } = await import("./platform.mjs");
