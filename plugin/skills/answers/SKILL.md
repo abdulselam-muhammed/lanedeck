@@ -5,7 +5,7 @@ description: Handle answers the human wrote in .lanedeck/inbox/ task files. Use 
 
 # lanedeck: act on answers
 
-Protocol version 1; `.lanedeck/PROTOCOL.md` is the source of truth.
+Protocol version 1 (1.1: content languages); `.lanedeck/PROTOCOL.md` is the source of truth.
 
 ## Do
 
@@ -16,6 +16,7 @@ Protocol version 1; `.lanedeck/PROTOCOL.md` is the source of truth.
 
 ## Rules
 
+- Languages (protocol 1.1): read `languages` from the front matter of `project.md` (none = English only). Write every human-facing text in ALL languages listed in `languages` (same meaning, technical terms unchanged); never in only one. Use the translation lines (`> now@ar:`, `==@ar`, `-@ar`, `#@ar`, `##@ar Q1 — ...`) and `lang-xx` fenced blocks of PROTOCOL.md "Languages"; the state field is never translated.
+
 - Handle only questions that have an answer line; leave open questions as they are.
 - One file per task; do not move, rename, merge or archive files (the human archives).
-- Write in the file's language; technical terms in English.

@@ -34,7 +34,7 @@ export function QuestionCard({ f, q }: { f: InboxFile; q: Question }) {
   const isNew = freshQ.has(f.name + "|" + q.id);
   return (
     <section
-      className={`my-3 rounded-xl border bg-card px-3 pb-3 ${isNew ? "border-gray-400 dark:border-gray-500" : "border-line"}`}
+      className={`panel-smoke my-3 rounded-xl border bg-card px-3 pb-3 shadow-theme-xs ${isNew ? "border-gray-400 dark:border-gray-500" : "border-line"}`}
     >
       <h2 className="flex flex-wrap items-center gap-2.5 pt-3 pb-1 text-[15.5px] font-semibold text-gray-800 dark:text-white/90">
         <span className="rounded-md bg-strip px-2 py-1 text-theme-xs font-semibold text-gray-700 mono dark:text-gray-200" dir="ltr">

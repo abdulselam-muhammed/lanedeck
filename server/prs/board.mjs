@@ -16,6 +16,7 @@ import { WebSocketServer } from 'ws';
 import config from '../config.mjs';
 import { spend } from '../budget.mjs';
 import { ts } from '../i18n/server.mjs';
+import { isBot, replyState } from '../mine/logic.mjs';
 
 /** The PrBoard class bound to one project's config (repo, clone, reviewers, markers, holds). */
 export function makeBoard(P) {
@@ -51,7 +52,7 @@ export function makeBoard(P) {
    search(query:$q,type:ISSUE,first:25,after:$after){ issueCount pageInfo{hasNextPage endCursor}
     nodes{ ... on PullRequest{ number title url isDraft author{login} headRefName baseRefName headRefOid mergeable mergeStateStatus
      reviewDecision createdAt updatedAt additions deletions changedFiles
-     comments(last:6){nodes{author{login} createdAt body}} reviews(last:6){nodes{author{login} submittedAt body}}
+     comments(last:6){nodes{author{__typename login} createdAt body}} reviews(last:6){nodes{author{__typename login} submittedAt body}}
      commits(last:1){nodes{commit{committedDate statusCheckRollup{state contexts(first:100){totalCount nodes{ __typename
       ... on CheckRun{name status conclusion detailsUrl startedAt completedAt}
       ... on StatusContext{context state targetUrl createdAt}}}}}}} }}}}`;
@@ -108,6 +109,15 @@ export function makeBoard(P) {
     const d = last.at.slice(5, 10);
     if (mentionsMe && !mine && /review|approve/i.test(last.body)) return { at: last.at, text: `${REVIEWER} asks you to review/approve (${d})` };
     return { at: last.at, text: `${REVIEWER} asked ${d}: ${last.body.replace(/\s+/g, ' ').trim().slice(0, 80)}` };
+  }
+
+  /** Who spoke last on a PR and whether someone else commented after your last comment or push (the "Your work" page). */
+  function talkOf(x, pushed, me) {
+    const items = [...(x.comments?.nodes || []).map((c) => ({ by: c.author?.login, bot: isBot(c.author), at: c.createdAt })),
+      ...(x.reviews?.nodes || []).filter((c) => c.body?.trim()).map((c) => ({ by: c.author?.login, bot: isBot(c.author), at: c.submittedAt }))];
+    const mine = x.author?.login && me && x.author.login.toLowerCase() === me.toLowerCase() ? [x.createdAt, pushed] : [];
+    const { last, newReply, replyBy, replyAt } = replyState(items, me, mine.filter(Boolean));
+    return { last, newReply, replyBy, replyAt };
   }
 
   /** Where a PR stands and who it waits for. */
@@ -320,7 +330,7 @@ export function makeBoard(P) {
           next.set(x.number, {
             number: x.number, title: x.title, url: x.url, author: x.author?.login || '?', draft: x.isDraft,
             head: x.headRefOid, headRef: x.headRefName, base: x.baseRefName, mergeable: x.mergeable, state: x.mergeStateStatus,
-            ask: reviewerAsk(x, commit?.committedDate), review: x.reviewDecision, created: x.createdAt, updated: x.updatedAt, pushed: commit?.committedDate || null,
+            ask: reviewerAsk(x, commit?.committedDate), talk: talkOf(x, commit?.committedDate, this.me || ME), review: x.reviewDecision, created: x.createdAt, updated: x.updatedAt, pushed: commit?.committedDate || null,
             size: { add: x.additions, del: x.deletions, files: x.changedFiles },
             ci: {
               rollup: commit?.statusCheckRollup?.state || null, gate: gate ? gate.s : null, total: list.length,
@@ -513,6 +523,8 @@ export function createPrs({ root, firstId, projectOf }) {
     /** The boards that are running (for the machine overview, which only reads them). */
     boards: () => [...live].map(([id, e]) => ({ id, board: e.board.board })),
     ensure: (pid) => !!get(pid),
+    /** One project's board as of now (started on first use), or null for an unknown project. */
+    boardOf: (pid) => get(pid)?.board.board ?? null,
     async handle(req, res, url, pid = firstId) {
       if (!url.pathname.startsWith('/api/prs/')) return false;
       // Host, Origin and cross-site requests: refused for every request by server/guard.mjs before this runs.

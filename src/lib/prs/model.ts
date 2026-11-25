@@ -60,6 +60,8 @@ export type Pr = {
   conflictFiles: string[];
   children: number[];
   mine: boolean;
+  /** who spoke last, and whether someone else commented after your last comment or push */
+  talk?: { last: { by: string; at: string } | null; newReply: boolean; replyBy: string | null; replyAt: string | null };
   stale?: boolean;
   measured?: boolean;
 };

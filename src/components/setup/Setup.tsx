@@ -170,7 +170,7 @@ export function SetupCard({ projectId, base, aiDone = false }: { projectId: stri
   const finish = async () => { setBusy(true); try { await setupApi.done(projectId); } catch { /* shown again on the next snapshot */ } finally { setBusy(false); } };
   if (aiDone)
     return (
-      <section className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-card p-4" data-testid="setup-review-card">
+      <section className="panel-smoke mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line/70 bg-card p-4 shadow-theme-xs" data-testid="setup-review-card">
         <div>
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">{t("card.review")}</h2>
           <p className="text-theme-sm text-muted">{t("card.reviewDesc")}</p>
@@ -183,7 +183,7 @@ export function SetupCard({ projectId, base, aiDone = false }: { projectId: stri
       </section>
     );
   return (
-    <section className="mb-3 grid gap-2 rounded-xl border border-line bg-card p-4" data-testid="setup-card">
+    <section className="panel-smoke mb-3 grid gap-2 rounded-xl border border-line/70 bg-card p-4 shadow-theme-xs" data-testid="setup-card">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">{t("card.title")}</h2>

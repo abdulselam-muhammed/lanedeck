@@ -166,7 +166,7 @@ function DeviceCard({ id, label, kind }: { id: string; label: string; kind: "loc
   const up = kind === "local" ? !!local?.ready : !!remote?.reachable;
   const containers = kind === "local" ? local?.docker?.containers.length : remote?.containers?.length;
   return (
-    <Link href={`/devices/${encodeURIComponent(id)}`} className="block rounded-xl border border-line bg-card p-3 transition hover:border-gray-400 dark:hover:border-gray-600">
+    <Link href={`/devices/${encodeURIComponent(id)}`} className="panel-smoke block rounded-xl border border-line/70 bg-card p-3 shadow-theme-xs transition hover:border-gray-400 dark:hover:border-gray-600">
       <div className="mb-3 flex items-center gap-2">
         <span className={`h-2 w-2 rounded-full ${up ? "bg-success-500" : "bg-gray-400"}`} />
         <b className="min-w-0 flex-1 truncate text-theme-sm font-semibold text-gray-900 dark:text-white">{label}</b>

@@ -1,6 +1,7 @@
 "use client";
 // The page's state (moved from the old index.html): the SSE snapshot, the tree, selection, filters,
 // collapsed state, unread tracking per file hash, new-question tracking, notifications, the default-branch check.
+import { contentLanguages, localizeText } from "../../../server/i18n/content.mjs";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -82,6 +83,8 @@ type Ctx = {
   loadBranch: (pull: boolean) => void;
   toggleSound: () => void;
   toast: (title: string, body: string, kind?: ToastKind, key?: string) => void;
+  /** toast + sound + desktop notification; a click on it opens `key` (an inbox file, or __questions / __branch / __mine). */
+  notify: (title: string, body: string, key: string, kind: ToastKind) => void;
   dismissToast: (id: number) => void;
   notifyHelp: boolean;
   setNotifyHelp: (v: boolean) => void;
@@ -117,6 +120,15 @@ function InboxProvider({ children, projectId }: { children: React.ReactNode; pro
   const [files, setFiles] = useState<InboxFile[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [protocol, setProtocol] = useState<Protocol | null>(null);
+  // Content languages (protocol 1.1): translation lines in the files resolve to the interface language.
+  const lang = cfg.ui.lang;
+  const langs = useMemo(() => contentLanguages(protocol?.languages, cfg.project.languages ?? null), [protocol?.languages, cfg.project.languages]);
+  const langRef = useRef({ lang, langs });
+  langRef.current = { lang, langs };
+  const protocolL = useMemo<Protocol | null>(
+    () => (protocol ? { ...protocol, map: localizeText(protocol.map, lang, langs), project: localizeText(protocol.project, lang, langs), glossary: protocol.glossaryByLang?.[lang] ?? protocol.glossary } : null),
+    [protocol, lang, langs],
+  );
   const [connected, setConnected] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [inboxError, setInboxError] = useState<string | null>(null);
@@ -264,7 +276,8 @@ function InboxProvider({ children, projectId }: { children: React.ReactNode; pro
   // ---------- live updates ----------
   const applyState = useCallback(
     (raw: RawFile[], nextAgents: Agent[], error: string | null) => {
-      const next = raw.map(parseFile);
+      const L = langRef.current;
+      const next = raw.map((f) => parseFile({ ...f, text: localizeText(f.text, L.lang, L.langs), rawText: f.text }));
       if (seenHashRef.current === null) {
         seenHashRef.current = Object.fromEntries(next.map((f) => [f.name, f.hash]));
         seenQRef.current = next.flatMap((f) => f.questions.map((q) => f.name + "|" + q.id));
@@ -359,6 +372,14 @@ function InboxProvider({ children, projectId }: { children: React.ReactNode; pro
     }, `/api/p/${projectId}/events`);
   }, [ready, applyState, router, projectId]);
 
+  // The interface or content language changed: parse the same files again in it (no new read).
+  const langKey = lang + "|" + langs.join(",");
+  useEffect(() => {
+    if (!rawRef.current.size) return;
+    applyState([...rawRef.current.values()].sort((a, b) => a.name.localeCompare(b.name)), [...agentsRef.current.values()], errorRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [langKey]);
+
   // Relative times are live through the shared clock in components/common/RelTime.tsx (not through this context).
 
   // ---------- unread ----------
@@ -436,7 +457,7 @@ function InboxProvider({ children, projectId }: { children: React.ReactNode; pro
   const value: Ctx = {
     files,
     agents,
-    protocol,
+    protocol: protocolL,
     tree,
     connected,
     updatedAt,
@@ -464,6 +485,7 @@ function InboxProvider({ children, projectId }: { children: React.ReactNode; pro
     loadBranch,
     toggleSound,
     toast,
+    notify,
     dismissToast,
     notifyHelp,
     setNotifyHelp,

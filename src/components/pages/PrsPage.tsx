@@ -132,8 +132,7 @@ function StageBadge({ pr }: { pr: Pr }) {
   const t = useT();
   const st = stageOf(pr.stage);
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-theme-xs font-medium whitespace-nowrap ${TONE_BG[st.tone]} ${TONE_TEXT[st.tone]}`}>
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: st.color }} />
+    <span className={`st-pill ${st.s === "ci-running" ? "pulse" : ""}`} style={{ "--pill": st.color } as React.CSSProperties}>
       {stageLabel(t, st.s)}
     </span>
   );
@@ -237,11 +236,11 @@ function PrRow({ pr, open, toggle }: { pr: Pr; open: boolean; toggle: () => void
   const age = days(pr.created);
   return (
     <>
-      <tr className="cursor-pointer border-t border-line transition-colors hover:bg-strip/60" onClick={toggle}>
-        <td className="px-3 py-1.5 align-top">
+      <tr className={`cursor-pointer ${open ? "dt-on" : ""}`} onClick={toggle}>
+        <td className="px-3 py-1.5 align-top" data-label="PR">
           <PrLink n={pr.number} url={pr.url} />
         </td>
-        <td className="max-w-[420px] px-2 py-1.5 align-top">
+        <td className="max-w-[420px] px-2 py-1.5 align-top" data-label={t("prs.col.title")}>
           <div className="truncate text-theme-sm font-medium text-gray-800 dark:text-gray-100" dir="ltr" title={pr.title}>
             {pr.title}
           </div>
@@ -254,27 +253,27 @@ function PrRow({ pr, open, toggle }: { pr: Pr; open: boolean; toggle: () => void
             </span>
           </div>
         </td>
-        <td className="px-2 py-1.5 align-top">
+        <td className="px-2 py-1.5 align-top" data-label={t("prs.col.stageWho")}>
           <StageBadge pr={pr} />
           <div className="mt-1 max-w-[260px] truncate text-[11.5px] text-muted" title={pr.why}>
             {whoLabel(pr.who, t)} · <span dir="ltr">{pr.why}</span>
           </div>
         </td>
-        <td className="px-2 py-1.5 align-top">
+        <td className="px-2 py-1.5 align-top" data-label="CI">
           <CiBar pr={pr} />
         </td>
-        <td className="mono px-2 py-1.5 align-top text-[11.5px] text-muted" dir="ltr">
+        <td className="mono px-2 py-1.5 align-top text-[11.5px] text-muted" dir="ltr" data-label="GitHub">
           {pr.mergeable === "CONFLICTING" ? <span className="text-error-500">CONFLICT</span> : pr.state}
           {pr.measured && <div className="text-[10.5px] text-brand-500" title={t("prs.measuredTip")}>measured locally</div>}
           {pr.review && <div className="text-[10.5px]">{pr.review.replace("_", " ").toLowerCase()}</div>}
         </td>
-        <td className="px-3 py-1.5 align-top text-[11.5px] whitespace-nowrap text-muted">
+        <td className="px-3 py-1.5 align-top text-[11.5px] whitespace-nowrap text-muted" data-label={t("prs.col.updated")}>
           <RelTime at={ms(pr.updated)} />
           <div className={age > 14 ? "text-warning-500" : ""}>{t("prs.age", { n: age })}</div>
         </td>
       </tr>
       {open && (
-        <tr className="bg-strip/40">
+        <tr className="dt-on">
           <td colSpan={6} className="px-3 py-2">
             <div className="grid gap-3 lg:grid-cols-2">
               <div>
@@ -494,7 +493,7 @@ export default function PrsPage() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder={t("prs.search")}
-              className="h-9 w-full rounded-lg sm:w-56 border border-line bg-transparent px-3 text-theme-sm outline-none focus:border-brand-500"
+              className="dt-search h-9 w-full rounded-lg sm:w-56 border border-line bg-transparent px-3 text-theme-sm outline-none focus:border-brand-500"
             />
           </CardHead>
           <div className="px-3 pb-3 sm:px-3">
@@ -523,10 +522,10 @@ export default function PrsPage() {
               </div>
             )}
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-start">
+          <div className="overflow-x-auto px-2 pb-2">
+            <table className="dt dt-stack w-full min-w-[900px] text-start">
               <thead>
-                <tr className="text-start text-[11.5px] tracking-wider text-muted uppercase">
+                <tr>
                   <th className="px-3 py-2 text-start font-medium">PR</th>
                   <th className="px-2 py-2 text-start font-medium">{t("prs.col.title")}</th>
                   <th className="px-2 py-2 text-start font-medium">{t("prs.col.stageWho")}</th>

@@ -20,7 +20,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <div className="min-h-screen pb-6">
         <AppSidebar />
         <Backdrop />
-        <div className={`ms-12 min-w-0 transition-[margin] duration-200 ease-in-out ${margin}`}>
+        <div className={`content-backdrop ms-12 min-h-[calc(100vh-1.5rem)] min-w-0 transition-[margin] duration-200 ease-in-out ${margin}`}>
           <AppHeader />
           <main className="w-full min-w-0 p-2 md:p-2.5">{children}</main>
         </div>

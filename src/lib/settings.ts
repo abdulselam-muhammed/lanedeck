@@ -6,7 +6,7 @@ export type ReviewMarkers = { fail: string[]; ask: string[]; pass: string[] };
 export type ProjectCfg = {
   id: string; name: string; repoPath: string | null; repo: string | null; defaultBranch: string; gateCheck: string | null;
   inboxDir: string | null; claudeProjectDir: string | null; me: string | null; reviewers: Reviewer[]; reviewMarkers: ReviewMarkers;
-  boardFiles: string[]; holds: Record<string, string>; profile: string | null;
+  boardFiles: string[]; holds: Record<string, string>; profile: string | null; languages?: ("en" | "ar")[] | null;
 };
 export type MachineCfg = { id: string; label?: string; sshAlias?: string; ssh?: string };
 export type Thresholds = { ram: number; cpu: number; disk: number; pagedPoolGB?: number };

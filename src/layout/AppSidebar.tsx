@@ -13,6 +13,8 @@ import { useSidebar } from "../context/SidebarContext";
 import { useInbox } from "@/components/inbox/InboxContext";
 import { CountBadge } from "@/components/inbox/bits";
 import { Icon } from "@/components/inbox/IconSprite";
+import MineNotifier from "@/components/mine/MineNotifier";
+import { useMine } from "@/lib/mine/useMine";
 
 type NavItem = { href: string; icon: string; label: string; match: (p: string) => boolean; pill?: React.ReactNode; tag?: string };
 
@@ -41,7 +43,7 @@ function ProjectSwitcher() {
     return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
   }, [menu]);
   const cur = projects.find((p) => p.id === id);
-  const section = onProjectPage ? (/^\/p\/[\w-]+(\/(?:questions|inbox|prs|flow|branch|glossary))/.exec(pathname)?.[1] ?? "") : "";
+  const section = onProjectPage ? (/^\/p\/[\w-]+(\/(?:questions|inbox|mine|prs|flow|branch|glossary))/.exec(pathname)?.[1] ?? "") : "";
   const initial = (cur?.name ?? "?").slice(0, 1).toUpperCase();
   const go = () => { setMenu(false); closeMobileSidebar(); };
   const itemCls = "flex items-center gap-2 px-2.5 py-1.5 text-theme-sm hover:bg-gray-50 dark:hover:bg-white/[0.04]";
@@ -141,6 +143,8 @@ const AppSidebar: React.FC = () => {
   const { ui } = useConfig();
   const lang = ui.lang;
 
+  const mine = useMine(project.id).data;
+  const needsYou = mine?.counts?.needsYou ?? 0;
   const branchPill = branchData && branchData.behind != null ? <CountBadge>{branchData.behind ? branchData.behind : "✓"}</CountBadge> : null;
   const P = project.base;
   const here = (sub: string) => (p: string) => (sub === "" ? p === P : p.startsWith(P + sub));
@@ -148,6 +152,7 @@ const AppSidebar: React.FC = () => {
     { href: P, icon: "home", label: t("layout.nav.overview"), match: here("") },
     { href: `${P}/questions`, icon: "help", label: t("layout.nav.questions"), match: here("/questions"), pill: counts.questions ? <CountBadge>{counts.questions}</CountBadge> : null },
     { href: `${P}/inbox`, icon: "inbox", label: t("layout.nav.inbox"), match: here("/inbox"), pill: unreadCount ? <CountBadge>{unreadCount}</CountBadge> : null },
+    { href: `${P}/mine`, icon: "circle-check", label: t("mine.nav"), match: here("/mine"), pill: needsYou ? <CountBadge>{needsYou}</CountBadge> : null },
     { href: `${P}/prs`, icon: "list-checks", label: t("layout.nav.prs"), match: here("/prs") },
     { href: `${P}/flow`, icon: "map", label: t("nav.flow"), match: here("/flow") },
     { href: `${P}/branch`, icon: "git-fork", label: t("nav.branch"), match: here("/branch"), pill: branchPill, tag: branch },
@@ -193,6 +198,7 @@ const AppSidebar: React.FC = () => {
           isMobileOpen ? "translate-x-0" : off
         } ${isExpanded ? "lg:translate-x-0!" : ""}`}
       >
+        <MineNotifier />
         <ProjectSwitcher />
         <p className="mt-2 mb-1 px-2 text-[11px] font-medium tracking-wider text-muted uppercase">{project.name}</p>
         <ul className="no-scrollbar flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto pb-2">

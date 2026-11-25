@@ -5,7 +5,7 @@ description: Check the .lanedeck/ folder against the lanedeck protocol and print
 
 # lanedeck: doctor
 
-Read-only by default: report problems and proposed fixes; change files only if the user agrees. Protocol version 1; `.lanedeck/PROTOCOL.md` is the source of truth.
+Read-only by default: report problems and proposed fixes; change files only if the user agrees. Protocol version 1 (1.1: content languages); `.lanedeck/PROTOCOL.md` is the source of truth.
 
 ## Checks (the same as the dashboard's "protocol" badge)
 
@@ -16,7 +16,8 @@ Read-only by default: report problems and proposed fixes; change files only if t
 5. Marker `<!-- lanedeck protocol: N -->`: N must not be above 1 (missing = 1).
 6. Inbox files (ignore names starting with `_` and `_archive/`): question IDs are capital letters plus digits and unique inside one file; `## Steps` (or `## الخطوات`) is a checklist `- [ ]` / `- [x]`.
 7. `inbox/` is in `.gitignore`.
-8. The project config does not set `inboxDir` (it replaces `.lanedeck/inbox/`, so the protocol inbox would not be shown). `00-setup.md` is either in `inbox/` or, once finished, in `inbox/_archive/`; that is normal.
+8. Languages: when `project.md` lists more than one language (`languages: [...]` front matter), every human-facing line (call-outs, stages, steps, headings, glossary terms, task titles and question headings) has a translation line for each other language, and longer text has a `lang-xx` block per language. Report each line that lacks one, with the missing language, and propose the translation.
+9. The project config does not set `inboxDir` (it replaces `.lanedeck/inbox/`, so the protocol inbox would not be shown). `00-setup.md` is either in `inbox/` or, once finished, in `inbox/_archive/`; that is normal.
 
 ## Output
 

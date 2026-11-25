@@ -20,6 +20,11 @@ mentions(read("templates/setup-prompt.txt"), "templates/setup-prompt.txt");
 for (const s of ["init", "map", "doctor"]) mentions(read(`plugin/skills/${s}/SKILL.md`), `plugin/skills/${s}`);
 // Nobody but the human archives; no agent-facing text may tell the agent to move files.
 for (const f of ["plugin/skills/report/SKILL.md", "plugin/skills/init/SKILL.md"]) if (/move finished tasks/i.test(read(f))) problems.push(`${f}: tells the agent to archive`);
+// Protocol 1.1: every agent-facing text tells the AI to write in all the project's languages.
+const LANG_RULE = "ALL languages listed in `languages`";
+for (const f of ["docs/PROTOCOL.md", "plugin/skills/init/SKILL.md", "plugin/skills/map/SKILL.md", "plugin/skills/report/SKILL.md", "plugin/skills/answers/SKILL.md"]) if (!read(f).includes(LANG_RULE)) problems.push(`${f}: does not tell the AI to write in all the project's languages`);
+if (!/ALL of these languages/.test(read("templates/setup-prompt.txt"))) problems.push("templates/setup-prompt.txt: does not tell the AI to write in all the project's languages");
+if (!/translation line/.test(read("plugin/skills/doctor/SKILL.md"))) problems.push("plugin/skills/doctor: does not check for missing translations");
 // A skill the model cannot invoke must not say "Use when".
 for (const s of fs.readdirSync(path.join(ROOT, "plugin/skills"))) {
   const t = read(`plugin/skills/${s}/SKILL.md`);

@@ -10,8 +10,9 @@ import * as inbox from "./areas/inbox.mjs";
 import * as load from "./areas/load.mjs";
 import * as settings from "./areas/settings.mjs";
 import * as setup from "./areas/setup.mjs";
+import * as mine from "./areas/mine.mjs";
 
-const AREAS = [common, layout, pages, prs, inbox, load, settings, setup];
+const AREAS = [common, layout, pages, prs, inbox, load, settings, setup, mine];
 export const DICT = { en: Object.assign({}, ...AREAS.map((a) => a.en)), ar: Object.assign({}, ...AREAS.map((a) => a.ar)) };
 
 /** Text direction that goes with a language, used when the config does not set ui.dir. */

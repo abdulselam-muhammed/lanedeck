@@ -6,6 +6,7 @@
 import { existsSync, lstatSync } from "node:fs";
 import { join } from "node:path";
 import { readPlainAsync } from "./safepath.mjs";
+import { contentLanguages, frontMatter, localizeText } from "./i18n/content.mjs";
 
 export const PROTOCOL_VERSION = 1;
 export const PROTOCOL_DIR = ".lanedeck";
@@ -67,21 +68,30 @@ async function read(path, name, warn) {
  * Everything the dashboard reads from `.lanedeck/`, plus the soft warnings.
  * `files`: the inbox files [{ name, text }], for the question checks. `skipped`: inbox entries that were not read (symlinks).
  */
-export async function readProtocol(dir, files, skipped = []) {
+export async function readProtocol(dir, files, skipped = [], configLanguages = null) {
   const warnings = [];
   const warn = (w) => { if (!warnings.includes(w)) warnings.push(w); };
   for (const name of skipped) warn(`inbox/${name} is a symlink or junction: not read`);
   if (isLink(dir)) {
     warn(".lanedeck is a symlink or junction: not read");
-    return { version: PROTOCOL_VERSION, project: null, map: null, glossary: [], warnings: warnings.slice(0, 20) };
+    return { version: PROTOCOL_VERSION, languages: contentLanguages(configLanguages), project: null, map: null, glossary: [], glossaryByLang: {}, warnings: warnings.slice(0, 20) };
   }
   if (isLink(join(dir, "inbox"))) warn("inbox is a symlink or junction: not read");
   const [proj, map, gloss] = await Promise.all(["project.md", "map.md", "glossary.md"].map((n) => read(join(dir, n), n, warn)));
   const seeVersion = (name, v) => { if (v > PROTOCOL_VERSION) warn(`${name}: protocol version ${v} is newer than this dashboard's (${PROTOCOL_VERSION})`); };
 
   let project = null;
+  let languages = null;
   if (proj === null) warn("project.md is missing");
-  else if (proj !== undefined) { const s = stripMarker(proj); seeVersion("project.md", s.version); project = s.text.trim() || null; if (!project) warn("project.md is empty"); }
+  else if (proj !== undefined) {
+    const s = stripMarker(proj);
+    seeVersion("project.md", s.version);
+    const fm = frontMatter(s.text);
+    languages = fm.languages;
+    project = String(fm.body).trim() || null;
+    if (!project) warn("project.md is empty");
+  }
+  languages = contentLanguages(languages, configLanguages);
 
   let mapText = null;
   if (map === null) warn("map.md is missing");
@@ -101,8 +111,15 @@ export async function readProtocol(dir, files, skipped = []) {
     }
   }
 
+  // The glossary is parsed once per content language (protocol 1.1 translation lines), so the page can switch language at once.
   let glossary = [];
-  if (gloss != null) { const s = stripMarker(gloss); seeVersion("glossary.md", s.version); glossary = parseGlossary(s.text, warn); }
+  const glossaryByLang = {};
+  if (gloss != null) {
+    const s = stripMarker(gloss);
+    seeVersion("glossary.md", s.version);
+    glossary = parseGlossary(localizeText(s.text, languages[0], languages), warn);
+    for (const l of new Set([...languages, "en", "ar"])) glossaryByLang[l] = parseGlossary(localizeText(s.text, l, languages), () => {});
+  }
 
   for (const f of files || []) {
     if (f.name.startsWith("_")) continue;
@@ -111,5 +128,5 @@ export async function readProtocol(dir, files, skipped = []) {
     const seen = new Set();
     for (const q of questionsOf(f.text)) { if (seen.has(q.id)) warn(`inbox/${f.name}: duplicate question ID ${q.id}`); seen.add(q.id); }
   }
-  return { version: PROTOCOL_VERSION, project, map: mapText, glossary, warnings: warnings.slice(0, 20) };
+  return { version: PROTOCOL_VERSION, languages, project, map: mapText, glossary, glossaryByLang, warnings: warnings.slice(0, 20) };
 }

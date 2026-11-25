@@ -48,6 +48,7 @@ const PROJECT_DEFAULTS = {
   reviewers: [], // [{ login, role }]
   boardFiles: [], // files whose conflicts are resolved by the reviewer, not by you
   holds: {}, // { "123": "why this PR is frozen" } (seed of data/prs/holds.json)
+  languages: null, // content languages, e.g. ["en", "ar"]: the AI writes every human-facing text in all of them (project.md front matter wins)
   profile: null, // name of a profile folder (<configDir>/profiles/<name>/ or the built-in profiles/<name>/) with project-specific text
   // How the reviewer's comments are read (regex sources, case-insensitive): fail/ask = "needs work from us", pass = "approved, not a request".
   reviewMarkers: { fail: ["CHANGES REQUESTED", "NOT PASS"], ask: ["what is missing", "\\bFIX\\b"], pass: ["^\\W*(APPROVE[DS]?|LGTM)"] },
@@ -136,6 +137,7 @@ function validate(c) {
     need(strOrNull(p.repoPath) && strOrNull(p.inboxDir) && strOrNull(p.claudeProjectDir) && strOrNull(p.me) && strOrNull(p.gateCheck) && strOrNull(p.profile), k, "path, login, gateCheck and profile fields must be a string or null");
     need(isStr(p.defaultBranch) && /^[\w./-]+$/.test(p.defaultBranch), `${k}.defaultBranch`, "must be a branch name");
     need(p.profile == null || /^[\w-]+$/.test(p.profile), `${k}.profile`, "must be a profile folder name (letters, digits, dashes)");
+    need(p.languages == null || (Array.isArray(p.languages) && p.languages.length > 0 && p.languages.every((l) => l === "en" || l === "ar")), `${k}.languages`, 'must be null or a list of "en" / "ar"');
     need(Array.isArray(p.reviewers) && p.reviewers.every((r) => isObj(r) && isStr(r.login)), `${k}.reviewers`, "must be an array of { login, role }");
     need(Array.isArray(p.boardFiles) && p.boardFiles.every(isStr), `${k}.boardFiles`, "must be an array of paths");
     need(isObj(p.reviewMarkers) && ["fail", "ask", "pass"].every((n) => Array.isArray(p.reviewMarkers[n]) && p.reviewMarkers[n].every(isStr)), `${k}.reviewMarkers`, "must be { fail: [...], ask: [...], pass: [...] } with regular-expression strings");
@@ -251,17 +253,29 @@ export function loadProfile(p = project()) {
   }
   return null;
 }
-const publicProject = (p) => ({ id: p.id, name: p.name, repo: p.repo, defaultBranch: p.defaultBranch, me: p.me, reviewers: p.reviewers, boardFiles: p.boardFiles, profile: p.profile });
+/**
+ * A profile's text in one language. Any value in a profile may be a plain string or a pair { "en": "...", "ar": "..." }; the pair
+ * is resolved to `lang`, else to the other language. Everything else (arrays, objects, numbers) is walked as is.
+ */
+const LANGS = ["en", "ar"];
+const isPair = (v) => v && typeof v === "object" && !Array.isArray(v) && Object.keys(v).length > 0 && Object.keys(v).every((k) => LANGS.includes(k)) && Object.values(v).every((x) => typeof x === "string");
+export function localize(v, lang) {
+  if (Array.isArray(v)) return v.map((x) => localize(x, lang));
+  if (isPair(v)) return v[lang] ?? v[LANGS.find((l) => l !== lang && v[l] != null)];
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, localize(x, lang)]));
+  return v;
+}
+const publicProject = (p) => ({ id: p.id, name: p.name, repo: p.repo, defaultBranch: p.defaultBranch, me: p.me, reviewers: p.reviewers, boardFiles: p.boardFiles, profile: p.profile, languages: p.languages ?? null });
 /** What the client may know: no filesystem paths, hosts or tool paths. */
 export function publicConfig() {
   const c = getConfig();
   const p = c.projects[0];
   return {
     project: publicProject(p),
-    projects: c.projects.map((x) => { const pr = loadProfile(x); return { ...publicProject(x), profileData: pr, hasGlossary: !!(pr && pr.glossary) || !!(x.repoPath && fs.existsSync(path.join(x.repoPath, protocolDirName(x.repoPath), "glossary.md"))) }; }),
+    projects: c.projects.map((x) => { const pr = localize(loadProfile(x), c.ui.lang); return { ...publicProject(x), profileData: pr, hasGlossary: !!(pr && pr.glossary) || !!(x.repoPath && fs.existsSync(path.join(x.repoPath, protocolDirName(x.repoPath), "glossary.md"))) }; }),
     github: { org: c.github.org },
     machine: { wslDistro: c.machine.wslDistro, ciContainer: c.machine.ciContainer, localLabel: c.machine.localLabel },
     ui: c.ui,
-    profile: loadProfile(),
+    profile: localize(loadProfile(), c.ui.lang),
   };
 }

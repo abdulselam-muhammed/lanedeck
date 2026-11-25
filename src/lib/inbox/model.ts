@@ -48,13 +48,18 @@ export type Agent = {
   progress?: Progress;
 };
 /** `proto`: the file belongs to a project that follows the .lanedeck protocol (docs/PROTOCOL.md). */
-export type RawFile = { name: string; text: string; mtime: number; proto?: boolean };
+/** `text` may be the localized text (translation lines resolved); `rawText` is then the file as written (its hash marks it read). */
+export type RawFile = { name: string; text: string; mtime: number; proto?: boolean; rawText?: string };
 /** The .lanedeck/ data of a protocol project (server/protocol.mjs). */
 export type Protocol = {
   version: number;
   project: string | null;
   map: string | null;
   glossary: { title: string; desc: string; entries: { terms: { term: string; meaning: string }[] }[] }[];
+  /** the glossary parsed for each content language (protocol 1.1) */
+  glossaryByLang?: Record<string, Protocol["glossary"]>;
+  /** the project's content languages: project.md front matter, else the config, else ["en"] */
+  languages?: string[];
   warnings: string[];
 };
 export type Snapshot = { inbox: string; files?: RawFile[]; error?: string; agents?: Agent[]; protocol?: Protocol | null; now: number };
@@ -169,7 +174,7 @@ export function parseFile(file: RawFile): InboxFile {
     questions: open,
     answeredQs,
     plan,
-    hash: hashOf(text),
+    hash: hashOf(file.rawText ?? text),
   };
 }
 
@@ -290,7 +295,7 @@ export const objOf = (v: unknown): Record<string, any> => // eslint-disable-line
 // A node's key is its file name ("x.md") or "agent:<id>"; "__questions" and "__branch" are the two fixed views.
 /** The page of a node or fixed view, under the project's base ("/p/<id>"). The branch page is `/branch`. */
 export const hrefOf = (key: string, base: string) =>
-  base + (key === "__questions" ? "/questions" : key === "__branch" ? "/branch" : "/inbox/" + encodeURIComponent(key));
+  base + (key === "__questions" ? "/questions" : key === "__branch" ? "/branch" : key === "__mine" ? "/mine?tab=needs" : "/inbox/" + encodeURIComponent(key));
 const dec = (s: string) => {
   try {
     return decodeURIComponent(s);
@@ -305,6 +310,7 @@ export function keyOfPath(path: string | null): string {
   if (p.startsWith("/flow/")) return dec(p.slice(6));
   if (p === "/questions") return "__questions";
   if (p === "/branch") return "__branch";
+  if (p === "/mine") return "__mine";
   return "";
 }
 export const hasFlow = (f: InboxFile) => /```flow\r?\n/.test(f.text);

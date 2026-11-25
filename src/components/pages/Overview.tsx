@@ -90,9 +90,9 @@ function ActiveAgents() {
               <div className="mono text-xl font-bold text-gray-900 dark:text-white">{avg == null ? "—" : avg + "%"}</div>
             </div>
           </div>
-          <table className="w-full min-w-[620px] text-start">
+          <table className="dt w-full min-w-[620px] text-start">
             <thead>
-              <tr className="border-y border-line bg-strip text-theme-xs text-gray-500 dark:text-gray-400">
+              <tr>
                 <th className="px-3 py-1.5 text-start font-medium">{t("pages.ov.colAgentStep")}</th>
                 <th className="px-3 py-1.5 text-start font-medium">{t("pages.ov.colState")}</th>
                 <th className="px-3 py-1.5 text-start font-medium">model</th>

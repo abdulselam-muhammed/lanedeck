@@ -20,6 +20,7 @@ A local control room for working with AI coding agents: CI runners, machine load
 
 - **Overview**: what the project is, active agents, inbox activity, open questions, the PR and branch state.
 - **Questions and Inbox**: the tasks your AI writes (`.lanedeck/inbox/`), their steps and the questions waiting for your answer.
+- **Your work**: your open issues (with a marker when someone replied after you), your PRs grouped by what they wait for, and the reviews and mentions asked of you; the sidebar badge counts what needs you.
 - **Merge board**: every open PR, live: where it stands, who it waits for, what failed, what merged, and conflicts down to the hunk.
 - **Work map**: what is done, in progress, waiting and next, drawn from `.lanedeck/map.md`.
 - **Branch and status**: whether your local clone is behind the default branch on GitHub.
@@ -85,6 +86,16 @@ Set `LANEDECK_CONFIG` to use another file (it must exist). Copy [`config.example
 Environment overrides: `PORT`, `INBOX_DIR`, `CLAUDE_PROJECT_DIR`.
 
 **Profiles.** A project may name a `profile`: a folder `<config folder>/profiles/<name>/profile.json` (next to `config.json`, or next to the default config file when `LANEDECK_CONFIG` points elsewhere) with project-specific wording and a glossary. Without one the deck uses neutral text.
+Every text value in a profile may be a plain string or a pair in both languages, and the deck shows the one that matches
+`ui.lang` (falling back to the other language when one is missing):
+
+```json
+{
+  "text": { "nav.flow": { "en": "Progress map", "ar": "..." } },
+  "flowLabels": { "done": { "en": "Done and merged", "ar": "..." } },
+  "glossary": [{ "title": { "en": "Reviews", "ar": "..." }, "entries": [{ "terms": [{ "term": "PASS", "meaning": { "en": "the plan is approved", "ar": "..." } }] }] }]
+}
+```
 
 ## Projects and the `.lanedeck` protocol
 
@@ -141,6 +152,7 @@ A missing tool (`powershell.exe`, `wsl.exe`, `docker`, `ssh`) switches that one 
 | ![Inbox task](https://raw.githubusercontent.com/abdulselam-muhammed/lanedeck/main/docs/screenshots/inbox-task.png) | ![Merge board](https://raw.githubusercontent.com/abdulselam-muhammed/lanedeck/main/docs/screenshots/pr-board.png) |
 | ![Runners](https://raw.githubusercontent.com/abdulselam-muhammed/lanedeck/main/docs/screenshots/runners.png) | ![Machine load](https://raw.githubusercontent.com/abdulselam-muhammed/lanedeck/main/docs/screenshots/load.png) |
 | ![Settings](https://raw.githubusercontent.com/abdulselam-muhammed/lanedeck/main/docs/screenshots/settings.png) | ![Skills](https://raw.githubusercontent.com/abdulselam-muhammed/lanedeck/main/docs/screenshots/skills.png) |
+| ![Your work](https://raw.githubusercontent.com/abdulselam-muhammed/lanedeck/main/docs/screenshots/your-work.png) | ![Your work, light](https://raw.githubusercontent.com/abdulselam-muhammed/lanedeck/main/docs/screenshots/your-work-light.png) |
 
 ## Roadmap
 

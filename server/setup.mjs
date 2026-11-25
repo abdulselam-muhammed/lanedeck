@@ -19,10 +19,13 @@ export const INSTRUCTION_FILES = ["AGENTS.md", "CLAUDE.md"];
 const tpl = (name) => fs.readFileSync(path.join(TEMPLATES, name), "utf8").replace(/\r\n?/g, "\n");
 const langName = (lang) => (lang === "ar" ? "Arabic" : "English");
 
-/** The full English prompt for "any AI", with the language filled in. */
-export const anyPrompt = (lang) => tpl("setup-prompt.txt").trim().replace("{{LANG}}", langName(lang));
+/** The full English prompt for "any AI", with the project's content languages filled in (the project's list, else English). */
+export const anyPrompt = (lang, languages = null) => {
+  const codes = languages && languages.length ? languages : ["en"];
+  return tpl("setup-prompt.txt").trim().replace("{{LANGS}}", codes.map(langName).join(" and ")).replace("{{CODES}}", codes.join(", "));
+};
 export const pluginPrompt = "/lanedeck:init";
-export const setupFile = (lang) => tpl(lang === "ar" ? "00-setup.ar.md" : "00-setup.en.md").replace("{{PROMPT}}", () => anyPrompt(lang));
+export const setupFile = (lang, languages = null) => tpl(lang === "ar" ? "00-setup.ar.md" : "00-setup.en.md").replace("{{PROMPT}}", () => anyPrompt(lang, languages));
 export const instructionBlock = () => tpl("AGENTS-block.md");
 
 /** The REAL path of the project folder, or throws. */
@@ -37,7 +40,7 @@ const hasIgnoreLine = (text) => text.split(/\r?\n/).some((l) => IGNORE_FORMS.inc
 const notPlain = (name) => Object.assign(new Error(`${name} is not a regular file`), { status: 400 });
 
 /** What setup would do, without writing anything. A symlinked target is reported (`symlink` / `unsafe`) and never read. */
-export function setupStatus(repoPath, lang) {
+export function setupStatus(repoPath, lang, languages = null) {
   const root = repoRoot(repoPath);
   const at = (...rel) => { const why = unsafeReason(root, rel); return { p: why ? null : safePath(root, rel), why }; };
   const has = (x) => !!x.p && exists(x.p);
@@ -58,12 +61,12 @@ export function setupStatus(repoPath, lang) {
       return { name, exists: t != null, hasBlock: t != null && t.includes(BLOCK_START), symlink: !!x.why };
     }),
     block: instructionBlock(),
-    prompts: { plugin: pluginPrompt, any: anyPrompt(lang) },
+    prompts: { plugin: pluginPrompt, any: anyPrompt(lang, languages) },
   };
 }
 
 /** Write the starting files. Idempotent: an existing file is reported, never replaced. Refuses a symlink or junction anywhere on the way. */
-export function doSetup(repoPath, lang, { gitignore = true } = {}) {
+export function doSetup(repoPath, lang, { gitignore = true, languages = null } = {}) {
   const root = repoRoot(repoPath);
   const created = [], existed = [];
   mkdirSafe(root, [PROTOCOL_DIR, "inbox"]);
@@ -77,7 +80,7 @@ export function doSetup(repoPath, lang, { gitignore = true } = {}) {
   put(["PROTOCOL.md"], tpl("PROTOCOL.md"));
   // a setup file that was already archived is not recreated
   if (exists(safePath(root, [PROTOCOL_DIR, "inbox", "_archive", "00-setup.md"]))) existed.push(`${PROTOCOL_DIR}/inbox/_archive/00-setup.md`);
-  else put(["inbox", "00-setup.md"], setupFile(lang));
+  else put(["inbox", "00-setup.md"], setupFile(lang, languages));
   let ignore = "skipped";
   if (gitignore) {
     const gi = safePath(root, [".gitignore"]);

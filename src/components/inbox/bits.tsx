@@ -68,10 +68,14 @@ export function Empty({ icon, children }: { icon: string; children: React.ReactN
   );
 }
 
-/** Rounded TailAdmin card (ComponentCard): rounded-xl, grey border, no shadow. */
-export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+/** The panel (Card): the stat tiles' surface, straight and quiet: a soft accent haze along the bottom (globals.css .panel-smoke).
+ *  `accent` picks a semantic colour; brand by default. */
+export const PANEL = "panel-smoke rounded-xl border border-line/70 bg-card shadow-theme-xs shadow-[inset_0_1px_0_rgba(255,255,255,.05)]";
+export function Card({ children, className = "", id, accent }: { children: React.ReactNode; className?: string; id?: string; accent?: Tone }) {
   return (
-    <div className={`rounded-xl border border-line bg-card ${className}`}>{children}</div>
+    <div id={id} className={`${PANEL} ${className}`} style={accent ? ({ "--tile-accent": TILE_ACCENT[accent] } as React.CSSProperties) : undefined}>
+      {children}
+    </div>
   );
 }
 
@@ -83,7 +87,7 @@ export function CardHead({ title, desc, children }: { title: React.ReactNode; de
         <h2 className="text-[14px] font-semibold text-gray-900 dark:text-white">{title}</h2>
         {desc && <p className="mt-1 text-theme-sm text-muted">{desc}</p>}
       </div>
-      {children && <div className="flex shrink-0 items-center gap-2">{children}</div>}
+      {children && <div className="flex max-w-full min-w-0 flex-wrap items-center gap-2 sm:shrink-0">{children}</div>}
     </div>
   );
 }
@@ -98,7 +102,8 @@ export function MoreLink({ href, children }: { href: string; children: React.Rea
   );
 }
 
-/** Page head (TailAdmin PageBreadCrumb): small crumbs, the title, a description line, the page's buttons opposite. */
+/** Page head: two plates facing each other: crumbs, title and description on the start side, the page's status and buttons
+ *  opposite. Each plate's inner end is cut on a slant (bottom longer than top) with a soft glow along it (globals.css .hdr-plate). */
 export function PageHeader({
   crumbs,
   title,
@@ -112,8 +117,9 @@ export function PageHeader({
 }) {
   const t = useT();
   return (
-    <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
-      <div className="min-w-0">
+    <div className="hdr-row mb-3 flex flex-wrap items-stretch justify-between gap-x-6 gap-y-2">
+      <div className="hdr-plate hdr-start min-w-0 max-w-full">
+        <PlateArt />
         {crumbs && crumbs.length > 0 && (
           <nav aria-label={t("inbox.bits.crumbs")} className="mb-1 flex flex-wrap items-center gap-1 text-theme-xs text-gray-500 dark:text-gray-400">
             {crumbs.map((c, i) => (
@@ -133,8 +139,25 @@ export function PageHeader({
         <h1 className="text-[17px] leading-7 font-bold text-gray-900 dark:text-white">{title}</h1>
         {desc && <p className="mt-1 text-theme-sm text-muted">{desc}</p>}
       </div>
-      {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
+      {children && (
+        <div className="hdr-plate hdr-end flex flex-wrap items-center gap-2">
+          <PlateArt />
+          {children}
+        </div>
+      )}
     </div>
+  );
+}
+
+/** The two layers behind a header plate (globals.css .hdr-plate): the slanted face, and the glow along the slanted end. */
+function PlateArt() {
+  return (
+    <>
+      <span aria-hidden="true" className="hdr-face" />
+      <span aria-hidden="true" className="hdr-glow">
+        <span />
+      </span>
+    </>
   );
 }
 
@@ -164,18 +187,20 @@ export const TONE_TILE: Record<Tone, string> = {
   gray: "bg-gray-500/10 text-gray-500 dark:bg-white/[0.06] dark:text-gray-400",
 };
 
-const ACCENT: Record<Tone, string> = {
-  run: "bg-brand-500/70",
-  warning: "bg-warning-500/80",
-  brand: "bg-brand-500/70",
-  success: "bg-success-500/70",
-  error: "bg-error-500",
-  violet: "bg-brand-500/50",
-  gray: "bg-gray-400/40 dark:bg-gray-500/40",
+/** The colour of a tile's smoky glow (globals.css .tile-smoke), one per tone. */
+export const TILE_ACCENT: Record<Tone, string> = {
+  run: "var(--color-brand-500)",
+  warning: "var(--color-warning-500)",
+  brand: "var(--color-brand-500)",
+  success: "var(--color-success-500)",
+  error: "var(--color-error-500)",
+  violet: "var(--color-brand-400)",
+  gray: "var(--color-gray-400)",
 };
 /**
  * The KPI row: separate floating tiles (no shared box). Each tile: a small muted label and a tinted round icon chip, the big
- * number, one short line, and a thin accent bar on the start edge. Only an `error` tile with a value above zero turns red;
+ * number, one short line. The card is slanted (globals.css .tile-slant) and its accent colour is a soft haze inside, densest at
+ * the bottom (.tile-smoke); no coloured edge. Only an `error` tile with a value above zero turns red;
  * everything else stays calm. The whole tile is the link; hover lifts it, keyboard focus draws a ring.
  */
 export function KpiStrip({ items, cols = "grid-cols-2 md:grid-cols-3 xl:grid-cols-5" }: { items: Kpi[]; cols?: string }) {
@@ -186,8 +211,7 @@ export function KpiStrip({ items, cols = "grid-cols-2 md:grid-cols-3 xl:grid-col
         const tone = k.tone ?? "gray";
         const alert = k.hot !== false && tone === "error";
         const body = (
-          <>
-            <span aria-hidden="true" className={`absolute inset-y-3 start-0 w-[3px] rounded-e-full ${alert ? ACCENT.error : k.hot === false ? ACCENT.gray : ACCENT[tone]}`} />
+          <span className="tile-upright flex w-full min-w-0 flex-col items-start">
             <span className="flex w-full min-w-0 items-center gap-2">
               <span className="truncate text-theme-xs font-medium text-muted">{k.label}</span>
               {k.icon && (
@@ -198,7 +222,7 @@ export function KpiStrip({ items, cols = "grid-cols-2 md:grid-cols-3 xl:grid-col
             </span>
             <span className="mt-2 text-[26px] leading-9 font-semibold text-gray-900 tnum dark:text-white">{k.value}</span>
             {(k.sub || k.see) && (
-              <span className="mt-1 block w-full truncate text-theme-xs text-muted">
+              <span className="mt-1 line-clamp-2 block w-full text-theme-xs text-muted">
                 {k.sub}
                 {k.see && (
                   <span className="ms-1 inline-flex items-center gap-1 font-medium text-gray-500 transition-colors group-hover:text-brand-600 dark:text-gray-400 dark:group-hover:text-brand-400">
@@ -208,16 +232,17 @@ export function KpiStrip({ items, cols = "grid-cols-2 md:grid-cols-3 xl:grid-col
                 )}
               </span>
             )}
-          </>
+          </span>
         );
+        const accent = { "--tile-accent": alert ? TILE_ACCENT.error : k.hot === false ? TILE_ACCENT.gray : TILE_ACCENT[tone] } as React.CSSProperties;
         const cls =
-          "group relative flex min-w-0 flex-col items-start overflow-hidden rounded-xl border border-line/60 bg-card p-3 ps-4 text-start shadow-theme-xs shadow-[inset_0_1px_0_rgba(255,255,255,.05)] transition duration-150 hover:-translate-y-0.5 hover:shadow-theme-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 motion-reduce:transition-none motion-reduce:hover:translate-y-0";
+          "tile-smoke tile-slant group relative flex min-w-0 flex-col items-start overflow-hidden rounded-xl border border-line/60 bg-card p-3 ps-4 text-start shadow-theme-xs shadow-[inset_0_1px_0_rgba(255,255,255,.05)] transition duration-150 hover:-translate-y-0.5 hover:shadow-theme-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/60 motion-reduce:transition-none motion-reduce:hover:translate-y-0";
         return k.href ? (
-          <Link key={k.key} href={k.href} onClick={k.onClick} title={k.title} className={cls}>
+          <Link key={k.key} href={k.href} onClick={k.onClick} title={k.title} className={cls} style={accent}>
             {body}
           </Link>
         ) : (
-          <button key={k.key} type="button" onClick={k.onClick} title={k.title} className={cls}>
+          <button key={k.key} type="button" onClick={k.onClick} title={k.title} className={cls} style={accent}>
             {body}
           </button>
         );
@@ -250,7 +275,7 @@ export function Seg<T extends string>({
           aria-selected={value === x.v}
           onClick={() => onChange(x.v)}
           className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-theme-xs font-medium whitespace-nowrap transition ${
- value === x.v ? "bg-card text-gray-900 shadow-theme-xs dark:bg-white/10 dark:text-white" : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
+ value === x.v ? "seg-on text-gray-900 dark:text-white" : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"
  }`}
         >
           {x.label}

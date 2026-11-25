@@ -1,4 +1,4 @@
-export interface PublicProject { id: string; name: string; repo: string | null; defaultBranch: string; me: string | null; reviewers: { login: string; name?: string; role?: string }[]; boardFiles: string[]; profile: string | null }
+export interface PublicProject { id: string; name: string; repo: string | null; defaultBranch: string; me: string | null; reviewers: { login: string; name?: string; role?: string }[]; boardFiles: string[]; profile: string | null; languages?: ("en" | "ar")[] | null }
 export interface PublicConfig {
   /** The first project (the default). The client replaces it with the project in the URL (ConfigProvider). */
   project: PublicProject;

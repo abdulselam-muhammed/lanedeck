@@ -40,13 +40,8 @@ export function useAllAgents(everyMs = 5000) {
 
 type Tab = "all" | "active" | "done";
 const STATE_ORDER: Record<string, number> = { run: 0, wait: 1, idle: 2, stopped: 3, done: 4 };
-const STATE_CLS: Record<string, string> = {
-  run: "bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300",
-  wait: "bg-warning-50 text-warning-700 dark:bg-warning-500/15 dark:text-warning-300",
-  idle: "bg-strip text-gray-600 dark:text-gray-300",
-  stopped: "bg-error-50 text-error-700 dark:bg-error-500/15 dark:text-error-400",
-  done: "bg-success-50 text-success-700 dark:bg-success-500/15 dark:text-success-400",
-};
+/** The status pill of each state (globals.css .st-pill): working breathes, waiting is amber, stopped red, done green. */
+const STATE_CLS: Record<string, string> = { run: "is-run pulse", wait: "is-wait", idle: "is-idle", stopped: "is-fail", done: "is-done" };
 const isActive = (a: Agent) => a.state === "run" || a.state === "wait";
 
 type Node = { a: MachineAgent; kids: Node[] };
@@ -85,7 +80,7 @@ function Row({ n, depth, names }: { n: Node; depth: number; names: Map<string, s
   const td = "px-3 py-1.5 align-middle";
   return (
     <>
-      <tr className="transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.02]">
+      <tr>
         <td className="max-w-0 py-1.5 ps-3 pe-3">
           <div className="flex min-w-0 items-center gap-1.5" style={{ paddingInlineStart: depth * 20 }}>
             {n.kids.length > 0 ? (
@@ -97,27 +92,27 @@ function Row({ n, depth, names }: { n: Node; depth: number; names: Map<string, s
               <span className="grid h-6 w-6 shrink-0 place-items-center text-gray-300 dark:text-gray-700" aria-hidden="true"><Icon name="corner" className="s14 -scale-x-100" /></span>
             ) : <span className="w-6 shrink-0" />}
             <span className="grid min-w-0">
-              <b dir="auto" className="truncate text-theme-sm font-medium text-gray-800 dark:text-white/90">{a.name}</b>
-              <span dir="ltr" className="truncate text-end text-theme-xs text-gray-500 mono dark:text-gray-400">{a.id}</span>
+              <b dir="auto" title={a.name} className="truncate text-theme-sm font-medium text-gray-800 dark:text-white/90">{a.name}</b>
+              <span dir="ltr" title={a.id} className="truncate text-start text-[11px] text-gray-400 mono dark:text-gray-500">{a.id}</span>
             </span>
           </div>
         </td>
-        <td className={td}><ProjectTag id={a.project} names={names} /></td>
-        <td className={td}><span className={`inline-block rounded-full px-2 py-0.5 text-theme-xs ${STATE_CLS[a.state] ?? STATE_CLS.idle}`}>{STATE_CLS[a.state] ? t(`pages.agent.state.${a.state}`) : a.state}</span></td>
-        <td className={td}>{a.model ? <span className="tag">{a.model}</span> : <span className="text-gray-400">—</span>}</td>
-        <td className={td + " max-w-[180px]"}>
-          {a.branch ? <span dir="ltr" className="block truncate text-theme-xs text-gray-600 mono dark:text-gray-300" title={a.branch}>{a.branch}</span> : <span className="text-gray-400">—</span>}
+        <td className={td} data-label={t("pages.agents.colProject")}><ProjectTag id={a.project} names={names} /></td>
+        <td className={td} data-label={t("pages.agents.colState")}><span className={`st-pill ${STATE_CLS[a.state] ?? STATE_CLS.idle}`}>{STATE_CLS[a.state] ? t(`pages.agent.state.${a.state}`) : a.state}</span></td>
+        <td className={td} data-label="model">{a.model ? <span className="tag">{a.model}</span> : <span className="dt-empty">—</span>}</td>
+        <td className={td + " max-w-[180px]"} data-label={t("pages.agents.colBranch")}>
+          {a.branch ? <span dir="ltr" className="block truncate text-theme-xs text-gray-600 mono dark:text-gray-300" title={a.branch}>{a.branch}</span> : <span className="dt-empty">—</span>}
         </td>
-        <td className={td + " w-[150px]"}>
-          {pct == null ? <span className="text-gray-400">—</span> : (
+        <td className={td + " w-[150px]"} data-label={t("pages.agents.colProgress")}>
+          {pct == null ? <span className="dt-empty">—</span> : (
             <span className="flex items-center gap-2">
               <b className="w-10 shrink-0 text-theme-xs mono text-gray-800 dark:text-white/90">{pct}%</b>
-              <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-strip"><span className="block h-full rounded-full bg-brand-500" style={{ width: `${pct}%` }} /></span>
+              <span className={`dt-bar flex-1 ${pct >= 100 ? "is-done" : ""}`}><span style={{ width: `${pct}%` }} /></span>
             </span>
           )}
         </td>
-        <td className={td + " whitespace-nowrap text-theme-xs text-gray-500 tnum dark:text-gray-400"}><RelTime at={a.startedAt} /></td>
-        <td className={td + " whitespace-nowrap pe-3 text-theme-xs text-gray-500 tnum dark:text-gray-400"}><RelTime at={a.lastAt} /></td>
+        <td className={td + " whitespace-nowrap text-theme-xs text-gray-500 tnum dark:text-gray-400"} data-label={t("pages.agents.colStarted")}><RelTime at={a.startedAt} /></td>
+        <td className={td + " whitespace-nowrap pe-3 text-theme-xs text-gray-500 tnum dark:text-gray-400"} data-label={t("pages.agents.colLast")}><RelTime at={a.lastAt} /></td>
       </tr>
       {!shut && n.kids.map((k) => <Row key={k.a.id} n={k} depth={depth + 1} names={names} />)}
     </>
@@ -177,7 +172,7 @@ export default function AgentsPage() {
           <div role="group" aria-label={t("pages.agents.project")} className="flex flex-wrap gap-1 rounded-lg bg-strip p-1">
             {[["", t("pages.agents.allProjects")], ...cfg.projects.map((p) => [p.id, p.name]), ["other", "other"]].map(([id, label]) => (
               <button key={id} type="button" onClick={() => setProject(id)} aria-pressed={project === id}
-                className={`rounded-md px-3 py-1.5 text-theme-xs font-medium ${project === id ? "bg-card text-gray-900 shadow-theme-xs dark:bg-white/10 dark:text-white" : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"}`}>
+                className={`rounded-md px-3 py-1.5 text-theme-xs font-medium transition ${project === id ? "seg-on text-gray-900 dark:text-white" : "text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white"}`}>
                 {label}
               </button>
             ))}
@@ -186,7 +181,7 @@ export default function AgentsPage() {
             <span className="sr-only">{t("pages.agents.filterLabel")}</span>
             <Icon name="search" className="s14 pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t("pages.agents.filterPh")}
-              className="h-10 w-[min(260px,70vw)] rounded-lg border border-line bg-transparent ps-9 pe-3 text-theme-sm text-gray-800 outline-none placeholder:text-gray-400 focus:border-gray-400 dark:text-white/90" />
+              className="dt-search h-10 w-[min(260px,70vw)] rounded-lg border border-line bg-transparent ps-9 pe-3 text-theme-sm text-gray-800 outline-none placeholder:text-gray-400 focus:border-gray-400 dark:text-white/90" />
           </label>
         </CardHead>
         {!data ? (
@@ -194,11 +189,11 @@ export default function AgentsPage() {
         ) : forest.length === 0 ? (
           <Empty icon={tab === "active" ? "activity" : "check"}>{words.length ? t("pages.agents.noResults") : tab === "active" ? t("pages.agents.noneRunning") : t("pages.agents.none")}</Empty>
         ) : (
-          <div className="custom-scrollbar overflow-x-auto">
-            <table className="w-full min-w-[980px]">
+          <div className="custom-scrollbar overflow-x-auto px-2 pb-2">
+            <table className="dt dt-stack w-full min-w-[980px]">
               <thead>
-                <tr className="border-y border-line bg-strip text-theme-xs text-gray-500 dark:text-gray-400">
-                  <th className="py-1.5 ps-3 pe-3 text-start font-medium">{t("pages.agents.colAgent")}</th>
+                <tr>
+                  <th className="w-[26%] py-1.5 ps-3 pe-3 text-start font-medium">{t("pages.agents.colAgent")}</th>
                   <th className="px-3 py-1.5 text-start font-medium">{t("pages.agents.colProject")}</th>
                   <th className="px-3 py-1.5 text-start font-medium">{t("pages.agents.colState")}</th>
                   <th className="px-3 py-1.5 text-start font-medium">model</th>
@@ -208,7 +203,7 @@ export default function AgentsPage() {
                   <th className="py-1.5 ps-3 pe-3 text-start font-medium">{t("pages.agents.colLast")}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-line">
+              <tbody>
                 {forest.map((n) => <Row key={n.a.id} n={n} depth={0} names={names} />)}
               </tbody>
             </table>

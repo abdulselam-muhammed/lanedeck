@@ -462,7 +462,7 @@ function AddDevice({ t, csrf, open, onClose, onAdd, taken }: {
 
 const emptyProject = (id: string): ProjectCfg => ({
   id, name: id, repoPath: null, repo: null, defaultBranch: "main", gateCheck: null, inboxDir: null, claudeProjectDir: null, me: null,
-  reviewers: [], reviewMarkers: { fail: ["CHANGES REQUESTED", "NOT PASS"], ask: ["what is missing", "\\bFIX\\b"], pass: ["^\\W*(APPROVE[DS]?|LGTM)"] }, boardFiles: [], holds: {}, profile: null,
+  reviewers: [], reviewMarkers: { fail: ["CHANGES REQUESTED", "NOT PASS"], ask: ["what is missing", "\\bFIX\\b"], pass: ["^\\W*(APPROVE[DS]?|LGTM)"] }, boardFiles: [], holds: {}, profile: null, languages: null,
 });
 
 function ProjectsTab({ t, csrf, addSignal, projects, setProjects, errKey, errMsg, foot }: {
@@ -524,6 +524,9 @@ function ProjectForm({ t, p, k, errKey, errMsg, onChange, detected }: {
         <Txt mono value={p.claudeProjectDir} onChange={(v) => onChange((x) => { x.claudeProjectDir = orNull(v); })} />
       </Field>
       <Field label={t("prj.profile")} hint={t("help.profile")} err={e("profile")}><Txt mono value={p.profile} onChange={(v) => onChange((x) => { x.profile = orNull(v); })} /></Field>
+      <Field label={t("prj.languages")} hint={t("help.languages")} err={e("languages")}>
+        <Txt mono placeholder="en" value={(p.languages ?? []).join(", ")} onChange={(v) => onChange((x) => { const l = v.split(/[\s,]+/).map((y) => y.trim().toLowerCase()).filter(Boolean); x.languages = l.length ? (l as ("en" | "ar")[]) : null; })} />
+      </Field>
       {detected && detected.checks.length > 0 && (
         <Field label={t("prj.checks")}><span className="mono text-theme-xs text-muted" dir="ltr">{detected.checks.join(" · ")}</span></Field>
       )}

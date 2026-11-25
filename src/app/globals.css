@@ -336,12 +336,10 @@
 
 /* Control-room look (2026-11-05): navy glass panels with cyan hairlines. Dark is the default theme; the light
    theme is the same language on pale blue-grey. Every page inherits it through these tokens. */
-:root { --shell: rgba(255,255,255,.78); --page: #e9f1f8; --page2: #dfeaf4; --card: rgba(255,255,255,.72); --strip: rgba(14,116,144,.08); --line: rgba(14,116,144,.2); --muted: #4d6a7a; --glow: rgba(8,145,178,.16); --pop: #f4f8fc;
-  --panel-glow: radial-gradient(120% 42% at 50% 100%, rgba(14,165,233,.12), rgba(14,165,233,.04) 55%, transparent 80%);
-  --page-bg-waves: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1600' height='520' viewBox='0 0 1600 520' fill='none'%3E%3Cpath d='M0 120C200 60 400 180 800 120S1400 60 1600 120' stroke='%2338bdf8' stroke-opacity='.16' stroke-width='1.5'/%3E%3Cpath d='M0 220C260 160 480 290 800 230S1380 170 1600 220' stroke='%236366f1' stroke-opacity='.12' stroke-width='1.5'/%3E%3Cpath d='M0 330C220 280 520 390 800 330S1340 280 1600 330' stroke='%2338bdf8' stroke-opacity='.14' stroke-width='1.5'/%3E%3Cpath d='M0 430C300 390 500 480 800 430S1300 390 1600 430' stroke='%236366f1' stroke-opacity='.1' stroke-width='1.5'/%3E%3C/svg%3E"); }
-.dark { --shell: rgba(6,16,32,.78); --page: #030812; --page2: #071426; --card: rgba(12,30,52,.55); --strip: rgba(56,189,248,.09); --line: rgba(56,189,248,.24); --muted: #8fb3c9; --glow: rgba(34,211,238,.18); --pop: #0b1a2e;
-  --panel-glow: radial-gradient(120% 42% at 50% 100%, rgba(34,211,238,.22), rgba(56,189,248,.08) 55%, transparent 80%);
-  --page-bg-waves: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1600' height='520' viewBox='0 0 1600 520' fill='none'%3E%3Cpath d='M0 120C200 60 400 180 800 120S1400 60 1600 120' stroke='%2322d3ee' stroke-opacity='.10' stroke-width='1.5'/%3E%3Cpath d='M0 220C260 160 480 290 800 230S1380 170 1600 220' stroke='%23818cf8' stroke-opacity='.09' stroke-width='1.5'/%3E%3Cpath d='M0 330C220 280 520 390 800 330S1340 280 1600 330' stroke='%2322d3ee' stroke-opacity='.08' stroke-width='1.5'/%3E%3Cpath d='M0 430C300 390 500 480 800 430S1300 390 1600 430' stroke='%23818cf8' stroke-opacity='.07' stroke-width='1.5'/%3E%3C/svg%3E"); }
+:root { --grid-tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cdefs%3E%3Cfilter id='g' x='-50%' y='-50%' width='200%' height='200%'%3E%3CfeGaussianBlur stdDeviation='1.3'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M-10 16Q0 14 10 16Q0 18 -10 16ZM22 16Q32 14 42 16Q32 18 22 16ZM16 -10Q14 0 16 10Q18 0 16 -10ZM16 22Q14 32 16 42Q18 32 16 22Z' fill='%230ea5e9' fill-opacity='.2' filter='url(%23g)'/%3E%3Cpath d='M-10 16Q0 14 10 16Q0 18 -10 16ZM22 16Q32 14 42 16Q32 18 22 16ZM16 -10Q14 0 16 10Q18 0 16 -10ZM16 22Q14 32 16 42Q18 32 16 22Z' fill='%230e7490' fill-opacity='.17'/%3E%3C/svg%3E"); --grid-glow: rgba(56,189,248,.07); --shell: rgba(255,255,255,.78); --page: #e9f1f8; --page2: #dfeaf4; --card: rgba(255,255,255,.72); --strip: rgba(14,116,144,.08); --line: rgba(14,116,144,.2); --muted: #4d6a7a; --glow: rgba(8,145,178,.16); --pop: #f4f8fc;
+  --panel-glow: radial-gradient(120% 42% at 50% 100%, rgba(14,165,233,.12), rgba(14,165,233,.04) 55%, transparent 80%); }
+.dark { --grid-tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cdefs%3E%3Cfilter id='g' x='-50%' y='-50%' width='200%' height='200%'%3E%3CfeGaussianBlur stdDeviation='1.3'/%3E%3C/filter%3E%3C/defs%3E%3Cpath d='M-10 16Q0 14 10 16Q0 18 -10 16ZM22 16Q32 14 42 16Q32 18 22 16ZM16 -10Q14 0 16 10Q18 0 16 -10ZM16 22Q14 32 16 42Q18 32 16 22Z' fill='%2322d3ee' fill-opacity='.2' filter='url(%23g)'/%3E%3Cpath d='M-10 16Q0 14 10 16Q0 18 -10 16ZM22 16Q32 14 42 16Q32 18 22 16ZM16 -10Q14 0 16 10Q18 0 16 -10ZM16 22Q14 32 16 42Q18 32 16 22Z' fill='%237dd3fc' fill-opacity='.13'/%3E%3C/svg%3E"); --grid-glow: rgba(34,211,238,.035); --shell: rgba(6,16,32,.78); --page: #030812; --page2: #071426; --card: rgba(12,30,52,.55); --strip: rgba(56,189,248,.09); --line: rgba(56,189,248,.24); --muted: #8fb3c9; --glow: rgba(34,211,238,.18); --pop: #0b1a2e;
+  --panel-glow: radial-gradient(120% 42% at 50% 100%, rgba(34,211,238,.22), rgba(56,189,248,.08) 55%, transparent 80%); }
 @theme inline {
   --color-shell: var(--shell);
   --color-page: var(--page);
@@ -353,17 +351,151 @@
 }
 body {
   background-color: var(--page);
-  /* the content backdrop: faint waves over two soft colour pools on an ink-navy (dark) or near-white (light) base; fixed, pure CSS */
-  background-image: var(--page-bg-waves), radial-gradient(900px 480px at 85% -8%, rgba(34,211,238,.10), transparent 70%), radial-gradient(760px 420px at 0% 105%, rgba(99,102,241,.08), transparent 70%), linear-gradient(180deg, var(--page) 0%, var(--page2) 100%);
-  background-size: 1600px 520px, auto, auto, auto;
-  background-position: center 30%, 0 0, 0 0, 0 0;
-  background-repeat: repeat-x, no-repeat, no-repeat, no-repeat;
+  /* the backdrop: two soft colour pools on an ink-navy (dark) or near-white (light) base; fixed, pure CSS */
+  background-image: radial-gradient(900px 480px at 85% -8%, rgba(34,211,238,.10), transparent 70%), radial-gradient(760px 420px at 0% 105%, rgba(99,102,241,.08), transparent 70%), linear-gradient(180deg, var(--page) 0%, var(--page2) 100%);
   background-attachment: fixed;
 }
-/* a very subtle grid behind everything */
-body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background-image: linear-gradient(rgba(56,189,248,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(56,189,248,.045) 1px, transparent 1px);
-  background-size: 44px 44px; mask-image: radial-gradient(ellipse at 50% 0%, #000 15%, transparent 72%); }
+/* the content area's backdrop (AppShell, beside the side panel, never under it): a broken blueprint grid. Each cell side
+   carries one separate segment, a spindle (pointed ends, 2px at the middle, 62% of the 32px side) with a soft blurred halo in
+   the accent colour; the crossings stay clear. One small SVG tile per theme (--grid-tile). It fades towards the bottom, sits on
+   a gentle glow that is brightest at the top, and the glass cards (blur + tint) fade it under them. Static. */
+.content-backdrop {
+  background-image:
+    linear-gradient(180deg, transparent 45%, var(--page2) 100%),
+    var(--grid-tile),
+    radial-gradient(ellipse 110% 70% at 50% -10%, var(--grid-glow), transparent 70%);
+  background-size: 100% 100%, 32px 32px, 100% 100%;
+  background-repeat: no-repeat, repeat, no-repeat;
+  background-attachment: fixed;
+}
+/* Stat tiles: a slanted card (a parallelogram: the side edges lean, top and bottom stay level; the content is skewed back so
+   it stays upright; mirrored in RTL; plain rectangles under 640px). The accent colour (--tile-accent, set per tile) shows only
+   as a soft coloured haze inside, like smoke: barely there at the top, denser and a little deeper towards the bottom. Static. */
+.tile-smoke { position: relative; isolation: isolate; overflow: hidden; --smoke-a: 16%; }
+.dark .tile-smoke { --smoke-a: 26%; }
+.tile-smoke::before {
+  content: "";
+  position: absolute;
+  inset: -12px;
+  z-index: -1;
+  pointer-events: none;
+  --s1: color-mix(in srgb, var(--tile-accent, var(--color-gray-400)) var(--smoke-a), transparent);
+  --s2: color-mix(in srgb, var(--tile-accent, var(--color-gray-400)) calc(var(--smoke-a) * .6), transparent);
+  background-image:
+    radial-gradient(70% 60% at 22% 112%, var(--s1), transparent 72%),
+    radial-gradient(60% 55% at 78% 104%, var(--s1), transparent 70%),
+    radial-gradient(55% 45% at 50% 72%, var(--s2), transparent 75%),
+    radial-gradient(40% 35% at 88% 58%, var(--s2), transparent 80%),
+    linear-gradient(180deg, transparent 25%, var(--s2) 100%);
+  filter: blur(8px);
+}
+/* Panels (Card and the few hand-made panels): the stat tiles' surface, kept straight and much quieter. The accent haze
+   (--tile-accent, brand by default) lives only along the bottom edge, in fixed pixel heights, so a tall table stays clean;
+   no blur and no overflow clipping, so menus inside a panel are never cut. */
+.panel-smoke { position: relative; isolation: isolate; --smoke-a: 9%; }
+.dark .panel-smoke { --smoke-a: 15%; }
+.panel-smoke::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  --s1: color-mix(in srgb, var(--tile-accent, var(--color-brand-500)) var(--smoke-a), transparent);
+  --s2: color-mix(in srgb, var(--tile-accent, var(--color-brand-500)) calc(var(--smoke-a) * .5), transparent);
+  background-image:
+    radial-gradient(55% 140px at 15% 100%, var(--s1), transparent 75%),
+    radial-gradient(50% 120px at 85% 100%, var(--s1), transparent 75%),
+    radial-gradient(40% 90px at 50% 100%, var(--s2), transparent 80%),
+    linear-gradient(180deg, transparent calc(100% - 160px), var(--s2) 100%);
+}
+@media (min-width: 640px) {
+  .tile-slant { transform: skewX(-6deg); }
+  .tile-slant > .tile-upright { transform: skewX(6deg); }
+  [dir="rtl"] .tile-slant { transform: skewX(6deg); }
+  [dir="rtl"] .tile-slant > .tile-upright { transform: skewX(-6deg); }
+}
+/* Page header plates (PageHeader): the start plate (title) reaches the page edge and its inner end is cut on a slant, bottom
+   longer than top; the end plate (status, buttons) has its top edge longer, so the two slants run parallel and the empty
+   middle, where the grid shows, is a slanted band. A soft accent glow bleeds sideways from each slant (a thin band, blurred by its parent so the plate's
+   clip does not cut it). Mirrored for RTL. */
+.hdr-plate { position: relative; isolation: isolate; --slant: 26px; padding: 8px 12px; }
+.hdr-face { position: absolute; inset: 0; z-index: -1; pointer-events: none; background-color: var(--card);
+  background-image: linear-gradient(180deg, rgba(255,255,255,.05), transparent 40%), linear-gradient(180deg, transparent 55%, color-mix(in srgb, var(--color-brand-500) 7%, transparent));
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.hdr-glow { position: absolute; top: 0; bottom: 0; width: calc(var(--slant) + 28px); z-index: -1; pointer-events: none; filter: blur(5px); }
+.hdr-glow > span { position: absolute; inset: 0; background: color-mix(in srgb, var(--color-brand-500) 75%, transparent); }
+.dark .hdr-glow > span { background: color-mix(in srgb, var(--color-brand-400) 80%, transparent); }
+.hdr-start { margin-inline-start: -10px; padding-inline-start: 14px; padding-inline-end: calc(var(--slant) + 16px); }
+.hdr-end { margin-inline-end: -10px; padding-inline-end: 14px; padding-inline-start: calc(var(--slant) + 16px); }
+/* start plate: bottom edge longer (its inner end reaches the centre at the bottom); LTR = slant on the right */
+.hdr-start .hdr-face { clip-path: polygon(0 0, calc(100% - var(--slant)) 0, 100% 100%, 0 100%); }
+.hdr-start .hdr-glow { right: -14px; left: auto; }
+.hdr-start .hdr-glow > span { clip-path: polygon(14px 0, 16px 0, calc(16px + var(--slant)) 100%, calc(14px + var(--slant)) 100%); }
+[dir="rtl"] .hdr-start .hdr-face { clip-path: polygon(var(--slant) 0, 100% 0, 100% 100%, 0 100%); }
+[dir="rtl"] .hdr-start .hdr-glow { left: -14px; right: auto; }
+[dir="rtl"] .hdr-start .hdr-glow > span { clip-path: polygon(calc(12px + var(--slant)) 0, calc(14px + var(--slant)) 0, 14px 100%, 12px 100%); }
+/* end plate: top edge longer (its inner end reaches the centre at the top), so the two slants run parallel; LTR = slant on the left */
+.hdr-end .hdr-face { clip-path: polygon(0 0, 100% 0, 100% 100%, var(--slant) 100%); }
+.hdr-end .hdr-glow { left: -14px; right: auto; }
+.hdr-end .hdr-glow > span { clip-path: polygon(12px 0, 14px 0, calc(14px + var(--slant)) 100%, calc(12px + var(--slant)) 100%); }
+[dir="rtl"] .hdr-end .hdr-face { clip-path: polygon(0 0, 100% 0, calc(100% - var(--slant)) 100%, 0 100%); }
+[dir="rtl"] .hdr-end .hdr-glow { right: -14px; left: auto; }
+[dir="rtl"] .hdr-end .hdr-glow > span { clip-path: polygon(calc(14px + var(--slant)) 0, calc(16px + var(--slant)) 0, 16px 100%, 14px 100%); }
+@media (max-width: 767px) {
+  .hdr-plate { --slant: 14px; }
+  .hdr-start { margin-inline-start: -8px; flex-basis: 100%; }
+  .hdr-end { margin-inline-end: -8px; margin-inline-start: auto; }
+}
+/* ---- Data tables (.dt): rows as soft cards. Separate rows with a small gap, a rounded translucent surface per row (drawn on
+   the cells, since a row cannot round), no full-width grid lines. The header is a translucent sticky band of small muted
+   labels over a soft glow line. Hover lifts the row with the tiles' accent glow; an open row (.dt-on) keeps a faint haze.
+   Tables marked .dt-stack become stacked cards on phones, each cell labelled from data-label. */
+.dt { border-collapse: separate !important; border-spacing: 0 6px; }
+.dt > thead > tr { background: none !important; border: 0 !important; }
+.dt > thead th { position: sticky; top: 0; z-index: 2; padding-block: 7px !important; font-size: 11px !important; font-weight: 600 !important; letter-spacing: .05em; text-transform: uppercase; color: var(--muted) !important;
+  background: color-mix(in srgb, var(--page) 55%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--color-brand-500) 30%, transparent), 0 8px 12px -12px color-mix(in srgb, var(--color-brand-500) 70%, transparent); }
+.dt > tbody > tr { border-width: 0 !important; background: none !important; }
+.dt > tbody > tr > td { background: color-mix(in srgb, var(--card) 88%, transparent); border-block: 1px solid color-mix(in srgb, var(--line) 55%, transparent);
+  transition: background-color .15s, box-shadow .15s, transform .15s; }
+.dt > tbody > tr > td:first-child { border-inline-start: 1px solid color-mix(in srgb, var(--line) 55%, transparent); border-start-start-radius: 10px; border-end-start-radius: 10px; }
+.dt > tbody > tr > td:last-child { border-inline-end: 1px solid color-mix(in srgb, var(--line) 55%, transparent); border-start-end-radius: 10px; border-end-end-radius: 10px; }
+.dt > tbody > tr:hover > td { background: color-mix(in srgb, var(--color-brand-500) 5%, var(--card)); border-color: color-mix(in srgb, var(--color-brand-500) 28%, transparent);
+  box-shadow: 0 10px 18px -14px color-mix(in srgb, var(--color-brand-500) 75%, transparent); }
+.dt > tbody > tr.dt-on > td { background: radial-gradient(140% 220% at 50% 120%, color-mix(in srgb, var(--color-brand-500) 12%, transparent), transparent 70%), color-mix(in srgb, var(--card) 88%, transparent); }
+@media (prefers-reduced-motion: no-preference) { .dt > tbody > tr:hover > td { transform: translateY(-1px); } }
+.dt .tag { height: 20px; border-radius: 999px; border-color: transparent; padding: 0 8px; background: var(--strip); color: var(--muted); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 60%, transparent); }
+.dt-empty { color: color-mix(in srgb, var(--muted) 45%, transparent); }
+.dt-bar { display: block; height: 5px; overflow: hidden; border-radius: 999px; background: var(--strip); }
+.dt-bar > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, color-mix(in srgb, var(--color-brand-500) 55%, transparent), var(--color-brand-400)); box-shadow: 0 0 8px color-mix(in srgb, var(--color-brand-400) 60%, transparent); }
+[dir="rtl"] .dt-bar > span { background: linear-gradient(270deg, color-mix(in srgb, var(--color-brand-500) 55%, transparent), var(--color-brand-400)); }
+.dt-bar.is-done > span { background: linear-gradient(90deg, color-mix(in srgb, var(--color-success-500) 55%, transparent), var(--color-success-500)); box-shadow: 0 0 8px color-mix(in srgb, var(--color-success-500) 45%, transparent); }
+/* status pill: a haze of the state colour (--pill) with a glowing dot; .pulse breathes for "working" */
+.st-pill { --pill: var(--color-gray-400); display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 500; line-height: 18px; white-space: nowrap;
+  color: color-mix(in srgb, var(--pill) 72%, #0b1220); background: radial-gradient(130% 180% at 0% 50%, color-mix(in srgb, var(--pill) 22%, transparent), transparent 75%), color-mix(in srgb, var(--pill) 8%, transparent);
+  box-shadow: 0 0 14px -6px color-mix(in srgb, var(--pill) 70%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--pill) 18%, transparent); }
+[dir="rtl"] .st-pill { padding: 2px 8px 2px 10px; background: radial-gradient(130% 180% at 100% 50%, color-mix(in srgb, var(--pill) 22%, transparent), transparent 75%), color-mix(in srgb, var(--pill) 8%, transparent); }
+.dark .st-pill { color: color-mix(in srgb, var(--pill) 70%, #ffffff); }
+.st-pill::before { content: ""; width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: var(--pill); box-shadow: 0 0 6px var(--pill); }
+.st-pill.is-run { --pill: var(--color-brand-500); } .st-pill.is-wait { --pill: var(--color-warning-500); } .st-pill.is-done { --pill: var(--color-success-500); }
+.st-pill.is-fail { --pill: var(--color-error-500); } .st-pill.is-idle { --pill: var(--color-gray-400); }
+@keyframes st-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .45; transform: scale(.7); } }
+@media (prefers-reduced-motion: no-preference) { .st-pill.pulse::before { animation: st-pulse 1.6s ease-in-out infinite; } }
+/* segmented filters: the active chip glows */
+.seg-on { background: var(--card); color: inherit; box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-brand-500) 45%, transparent), 0 0 14px -4px color-mix(in srgb, var(--color-brand-500) 70%, transparent); }
+.dt-search { transition: border-color .15s, box-shadow .15s; }
+.dt-search:focus { border-color: color-mix(in srgb, var(--color-brand-500) 60%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-brand-500) 18%, transparent), 0 0 16px -6px var(--color-brand-500); }
+@media (max-width: 639px) {
+  .dt.dt-stack { min-width: 0 !important; border-spacing: 0; }
+  .dt.dt-stack > thead { display: none; }
+  .dt.dt-stack, .dt.dt-stack > tbody, .dt.dt-stack > tbody > tr, .dt.dt-stack > tbody > tr > td { display: block; width: 100%; }
+  .dt.dt-stack > tbody > tr { margin-bottom: 8px; border-radius: 12px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--line) 55%, transparent) !important; background: color-mix(in srgb, var(--card) 88%, transparent) !important; }
+  .dt.dt-stack > tbody > tr > td { max-width: none !important; border: 0 !important; border-radius: 0 !important; background: none !important; padding: 4px 12px !important; }
+  .dt.dt-stack > tbody > tr > td:first-child { padding-top: 10px !important; }
+  .dt.dt-stack > tbody > tr > td:last-child { padding-bottom: 10px !important; }
+  .dt.dt-stack > tbody > tr > td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 2px; font-size: 10.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+}
 /* glass cards, a soft glow on hover */
 [class*="bg-card"] { -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); transition: box-shadow .2s, border-color .2s; }
 [class*="bg-card"]:hover { box-shadow: 0 0 18px var(--glow); }

@@ -57,7 +57,7 @@ export default function InboxPage() {
  </Link>
  )}
  <div
- className={`grid overflow-hidden rounded-xl border border-line bg-card ${cols} ${
+ className={`panel-smoke grid overflow-hidden rounded-xl border border-line/70 bg-card shadow-theme-xs ${cols} ${
           wide ? "h-[calc(100dvh-80px)] min-h-[520px]" : ""
         }`}
  >

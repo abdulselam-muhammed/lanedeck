@@ -317,13 +317,13 @@ export function createSettings({ port, broadcast, refresh = async () => {}, relo
         const proj = projectById(pid);
         if (!proj) return send(res, 404, { error: "unknown project" }), true;
         const lang = getConfig().ui.lang;
-        if (route === "setup" && method === "GET") return send(res, 200, setupStatus(proj.repoPath, lang)), true;
+        if (route === "setup" && method === "GET") return send(res, 200, setupStatus(proj.repoPath, lang, proj.languages)), true;
         const body = (await readBody(req)) || {};
         const out = route === "done" ? finishSetup(proj.repoPath) : route === "setup"
-          ? doSetup(proj.repoPath, lang, { gitignore: body.gitignore !== false })
+          ? doSetup(proj.repoPath, lang, { gitignore: body.gitignore !== false, languages: proj.languages })
           : addInstructions(proj.repoPath, Array.isArray(body.files) ? body.files.map(String) : [], { create: body.create === true });
         await refresh(pid).catch(() => {});
-        return send(res, 200, { ok: true, ...out, status: setupStatus(proj.repoPath, lang) }), true;
+        return send(res, 200, { ok: true, ...out, status: setupStatus(proj.repoPath, lang, proj.languages) }), true;
       }
       if (route === "detect") {
         const body = await readBody(req);

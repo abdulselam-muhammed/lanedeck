@@ -601,12 +601,12 @@ function createInbox(P) {
     syncMode();
     const own = PDIR && !P.inboxExplicit ? P.repoPath : null; // the inbox is the project's .lanedeck/inbox: check it from the repo down
     let [inbox, agents] = await Promise.all([inboxFiles(INBOX, !!PDIR, own), PROJECT ? liveAgents(PROJECT) : []]);
-    let protocol = PDIR ? await readProtocol(PDIR, inbox.files ?? [], inbox.skipped) : undefined; // undefined: legacy mode, the snapshot is unchanged
+    let protocol = PDIR ? await readProtocol(PDIR, inbox.files ?? [], inbox.skipped, P.languages) : undefined; // undefined: legacy mode, the snapshot is unchanged
     // The finished setup file archives itself (only that file; see server/setup.mjs).
     const setup = PDIR && (inbox.files ?? []).find((f) => f.name === "00-setup.md");
     if (setup && archiveSetup(INBOX, setup, P.repoPath)) {
       inbox = await inboxFiles(INBOX, true, own);
-      protocol = await readProtocol(PDIR, inbox.files ?? [], inbox.skipped);
+      protocol = await readProtocol(PDIR, inbox.files ?? [], inbox.skipped, P.languages);
     }
     delete inbox.skipped;
     return { inbox: INBOX, ...inbox, agents: withProgress(inbox.files ?? [], agents), protocol, now: Date.now() };
