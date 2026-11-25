@@ -1,6 +1,6 @@
 "use client";
 // The side panel next to the activity bar: open (220px) or collapsed on desktop, a drawer on phones.
-// The collapse is remembered per viewer in localStorage["selamDeck.panelCollapsed"].
+// The collapse is remembered per viewer in localStorage["laneDeck.panelCollapsed"].
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { store } from "@/lib/inbox/model";
 

@@ -10,7 +10,7 @@ export default function Page() {
   const cfg = useConfig();
   const t = useT();
   const { protocol } = useInbox();
-  // The profile glossary still works; .selam-deck/glossary.md is merged after it.
+  // The profile glossary still works; .lanedeck/glossary.md is merged after it.
   const groups = [...((cfg.profile?.glossary as Group[] | undefined) ?? []), ...((protocol?.glossary as Group[] | undefined) ?? [])];
   return (
     <GlossaryView

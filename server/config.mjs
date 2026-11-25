@@ -1,8 +1,8 @@
-// selam-deck configuration: ONE module every other part of the server (and, through /api/config and the root layout,
+// lanedeck configuration: ONE module every other part of the server (and, through /api/config and the root layout,
 // the client) reads. No project, person or machine is named in code; the defaults below are generic.
 //
-// Load order: built-in defaults <- JSON file. The file is $SELAM_DECK_CONFIG, else the per-user path
-// (Windows %APPDATA%/selam-deck/config.json, else $XDG_CONFIG_HOME/selam-deck/config.json or ~/.config/selam-deck/config.json).
+// Load order: built-in defaults <- JSON file. The file is $LANEDECK_CONFIG, else the per-user path
+// (Windows %APPDATA%/lanedeck/config.json, else $XDG_CONFIG_HOME/lanedeck/config.json or ~/.config/lanedeck/config.json).
 // Objects are merged deeply, arrays and scalars are replaced. A bad value stops the server with a message naming the key.
 import fs from "node:fs";
 import os from "node:os";
@@ -10,6 +10,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { isWin } from "./platform.mjs";
+import { protocolDirName } from "./protocol.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.join(HERE, "..");
@@ -32,7 +33,7 @@ const DEFAULTS = {
   },
   github: { org: null, rateBudgetPerHour: 600 },
   projects: [],
-  ui: { lang: "en", dir: null, title: "selam-deck", brand: null, runnerPrefix: null }, // runnerPrefix: stripped from runner names in the queue pills
+  ui: { lang: "en", dir: null, title: "lanedeck", brand: null, runnerPrefix: null }, // runnerPrefix: stripped from runner names in the queue pills
 };
 const PROJECT_DEFAULTS = {
   id: "default",
@@ -41,7 +42,7 @@ const PROJECT_DEFAULTS = {
   repo: null, // "owner/name" on GitHub
   defaultBranch: "main",
   gateCheck: null, // name of the required CI check
-  inboxDir: null, // folder of agent result files; default <home>/selam-deck/inbox
+  inboxDir: null, // folder of agent result files; default <home>/lanedeck/inbox
   claudeProjectDir: null, // ~/.claude/projects/<dir>; default derived from repoPath
   me: null, // your GitHub login
   reviewers: [], // [{ login, role }]
@@ -64,18 +65,19 @@ function deepFreeze(o) {
   return o;
 }
 
-/** The config file location of this OS, ignoring SELAM_DECK_CONFIG. */
+/** The config file location of this OS, ignoring LANEDECK_CONFIG. Legacy: an existing pre-rename "selam-deck" folder is used while no "lanedeck" one exists. */
 export function defaultConfigPath() {
-  if (process.platform === "win32" && process.env.APPDATA) return path.join(process.env.APPDATA, "selam-deck", "config.json");
-  return path.join(process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config"), "selam-deck", "config.json");
+  const base = process.platform === "win32" && process.env.APPDATA ? process.env.APPDATA : process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config");
+  const dir = path.join(base, "lanedeck");
+  return path.join(!fs.existsSync(dir) && fs.existsSync(path.join(base, "selam-deck")) ? path.join(base, "selam-deck") : dir, "config.json");
 }
 export function configPath() {
-  if (process.env.SELAM_DECK_CONFIG) return path.resolve(process.env.SELAM_DECK_CONFIG);
+  if (process.env.LANEDECK_CONFIG) return path.resolve(process.env.LANEDECK_CONFIG);
   return defaultConfigPath();
 }
 
 function fail(key, msg) {
-  const e = new Error(`selam-deck config: "${key}" ${msg} (file: ${configPath()})`);
+  const e = new Error(`lanedeck config: "${key}" ${msg} (file: ${configPath()})`);
   e.key = key; e.detail = msg;
   throw e;
 }
@@ -194,9 +196,9 @@ function build() {
   let user = {};
   if (fs.existsSync(file)) {
     try { user = JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/, "")); }
-    catch (e) { throw new Error(`selam-deck config: ${file} is not valid JSON (${e.message})`); }
-    if (!isObj(user)) throw new Error(`selam-deck config: ${file} must contain a JSON object`);
-  } else if (process.env.SELAM_DECK_CONFIG) throw new Error(`selam-deck config: SELAM_DECK_CONFIG points to ${file}, which does not exist`);
+    catch (e) { throw new Error(`lanedeck config: ${file} is not valid JSON (${e.message})`); }
+    if (!isObj(user)) throw new Error(`lanedeck config: ${file} must contain a JSON object`);
+  } else if (process.env.LANEDECK_CONFIG) throw new Error(`lanedeck config: LANEDECK_CONFIG points to ${file}, which does not exist`);
   const c = withDefaults(user);
 
   // Deprecated env overrides, kept so old launch scripts still work.
@@ -207,8 +209,8 @@ function build() {
 
   // Derived values.
   c.projects.forEach((p, i) => {
-    p.inboxExplicit = !!p.inboxDir; // an explicit inboxDir beats the project's .selam-deck/inbox
-    p.inboxDir ||= i === 0 ? path.join(os.homedir(), "selam-deck", "inbox") : path.join(os.homedir(), "selam-deck", "inbox", p.id);
+    p.inboxExplicit = !!p.inboxDir; // an explicit inboxDir beats the project's .lanedeck/inbox
+    p.inboxDir ||= i === 0 ? path.join(os.homedir(), "lanedeck", "inbox") : path.join(os.homedir(), "lanedeck", "inbox", p.id);
     if (!p.claudeProjectDir && p.repoPath) p.claudeProjectDir = path.join(os.homedir(), ".claude", "projects", path.resolve(p.repoPath).replace(/[^A-Za-z0-9]/g, "-"));
     if (i === 0) p.claudeProjectDir ||= path.join(os.homedir(), ".claude", "projects");
   });
@@ -226,9 +228,9 @@ function build() {
 }
 
 /** The loaded config (frozen). Memoised on globalThis so bundled copies (Next) and the custom server share one. */
-export function getConfig() { return (globalThis.__selamDeckConfig ??= build()); }
+export function getConfig() { return (globalThis.__laneDeckConfig ??= build()); }
 /** Re-read the file into the shared slot. Modules that copied values at start-up (the PR board, the inbox watcher) keep the old ones until a restart. */
-export function reloadConfig() { globalThis.__selamDeckConfig = build(); return globalThis.__selamDeckConfig; }
+export function reloadConfig() { globalThis.__laneDeckConfig = build(); return globalThis.__laneDeckConfig; }
 const config = getConfig();
 export default config;
 
@@ -237,7 +239,7 @@ export const project = () => getConfig().projects[0];
 /** A configured project by id, or undefined. */
 export const projectById = (id) => getConfig().projects.find((p) => p.id === id);
 
-/** Folders searched for `<name>/profile.json`: next to the config file in use, then next to the default config file (when SELAM_DECK_CONFIG points elsewhere), then the profiles shipped with the deck. */
+/** Folders searched for `<name>/profile.json`: next to the config file in use, then next to the default config file (when LANEDECK_CONFIG points elsewhere), then the profiles shipped with the deck. */
 export const profileDirs = () => [...new Set([path.join(path.dirname(configPath()), "profiles"), path.join(path.dirname(defaultConfigPath()), "profiles"), path.join(ROOT, "profiles")])];
 /** Project-specific text (glossary, labels) from <configDir>/profiles/<name>/profile.json or the built-in profiles/<name>/profile.json, or null. */
 export function loadProfile(p = project()) {
@@ -255,7 +257,7 @@ export function publicConfig() {
   const p = c.projects[0];
   return {
     project: publicProject(p),
-    projects: c.projects.map((x) => { const pr = loadProfile(x); return { ...publicProject(x), profileData: pr, hasGlossary: !!(pr && pr.glossary) || !!(x.repoPath && fs.existsSync(path.join(x.repoPath, ".selam-deck", "glossary.md"))) }; }),
+    projects: c.projects.map((x) => { const pr = loadProfile(x); return { ...publicProject(x), profileData: pr, hasGlossary: !!(pr && pr.glossary) || !!(x.repoPath && fs.existsSync(path.join(x.repoPath, protocolDirName(x.repoPath), "glossary.md"))) }; }),
     github: { org: c.github.org },
     machine: { wslDistro: c.machine.wslDistro, ciContainer: c.machine.ciContainer, localLabel: c.machine.localLabel },
     ui: c.ui,

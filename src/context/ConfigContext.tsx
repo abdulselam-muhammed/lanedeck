@@ -13,14 +13,14 @@ const FALLBACK: PublicConfig = {
   projects: [],
   github: { org: null },
   machine: { wslDistro: null, ciContainer: null, localLabel: "This PC (WSL)" },
-  ui: { lang: "en", dir: "ltr", title: "selam-deck", brand: null, runnerPrefix: null },
+  ui: { lang: "en", dir: "ltr", title: "lanedeck", brand: null, runnerPrefix: null },
   profile: null,
 };
 const Ctx = createContext<PublicConfig>(FALLBACK);
 
 /** The project in the URL (`/p/<id>/...`), or "" on a machine page. */
 export const projectIdOfPath = (path: string | null): string => /^\/p\/([\w-]+)(?:\/|$)/.exec(path || "")?.[1] ?? "";
-const LAST_KEY = "selamDeck.lastProject";
+const LAST_KEY = "laneDeck.lastProject";
 export type ProjectCtx = {
   /** The current project: the one in the URL, else the last one used, else the first. */
   id: string;

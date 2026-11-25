@@ -437,7 +437,7 @@ function ProtocolPanel() {
     <>
     {(!protocol.project || !protocol.map) ? <SetupCard projectId={id} base={base} /> : files.some((f) => f.name === "00-setup.md") && <SetupCard projectId={id} base={base} aiDone />}
     <Card className="mb-3">
-      <CardHead title={t("pages.ov.aboutTitle")} desc={<span dir="ltr" className="mono">.selam-deck/project.md</span>}>
+      <CardHead title={t("pages.ov.aboutTitle")} desc={<span dir="ltr" className="mono">.lanedeck/project.md</span>}>
         <span
           className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-theme-xs font-medium ${w.length ? "border-warning-500/50 text-warning-700 dark:text-warning-300" : "border-line text-muted"}`}
           title={w.length ? w.join("\n") : "protocol v" + protocol.version + ": no problems"}

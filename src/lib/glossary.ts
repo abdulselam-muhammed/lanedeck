@@ -1,4 +1,4 @@
-// The built-in glossary shipped with selam-deck: general working terms (git, GitHub, CI, review, agents), English and Arabic.
+// The built-in glossary shipped with lanedeck: general working terms (git, GitHub, CI, review, agents), English and Arabic.
 // Nothing project-specific lives here. A project's own terms and its rules on these words go in <config folder>/profiles/<name>/profile.json.
 type L = { en: string; ar: string };
 type Term = { term: string; en: string; ar: string };

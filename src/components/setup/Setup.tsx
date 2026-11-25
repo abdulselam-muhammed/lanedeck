@@ -1,5 +1,5 @@
 "use client";
-// "Set up selam-deck in this project": the confirm dialog shown after a new project is added, the copy-prompt buttons
+// "Set up lanedeck in this project": the confirm dialog shown after a new project is added, the copy-prompt buttons
 // (task page of 00-setup.md and the overview card) and the AGENTS.md / CLAUDE.md preview dialog. Nothing is written
 // before a confirm; the writes themselves are in server/setup.mjs.
 import React, { useCallback, useEffect, useState } from "react";
@@ -60,8 +60,8 @@ export function SetupDialog({ projectId, onClose }: { projectId: string; onClose
           <>
             <p className="text-theme-sm text-gray-700 dark:text-gray-300">{t("dlg.lead")}</p>
             <ul className="grid gap-1.5">
-              {row(".selam-deck/PROTOCOL.md", t("dlg.protocol"), s.files.protocol)}
-              {row(".selam-deck/inbox/00-setup.md", t("dlg.setup"), s.files.setup)}
+              {row(".lanedeck/PROTOCOL.md", t("dlg.protocol"), s.files.protocol)}
+              {row(".lanedeck/inbox/00-setup.md", t("dlg.setup"), s.files.setup)}
             </ul>
             <label className="flex items-start gap-2 text-theme-sm text-gray-800 dark:text-gray-200">
               <input type="checkbox" className="mt-1" checked={ignore} onChange={(e) => setIgnore(e.target.checked)} data-testid="setup-ignore" />

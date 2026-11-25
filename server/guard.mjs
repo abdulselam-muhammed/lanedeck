@@ -81,7 +81,7 @@ export function createGuard({ port, allowedHosts = [], auth = () => ({ token: nu
     const cookie = `${COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${COOKIE_DAYS * 86400}${https(req) ? "; Secure" : ""}`;
     const js = JSON.stringify(to).replace(/</g, "\\u003c");
     res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "referrer-policy": "no-referrer", "x-content-type-options": "nosniff", "set-cookie": cookie });
-    res.end(`<!doctype html><meta charset="utf-8"><title>selam-deck</title><meta http-equiv="refresh" content="0;url=${to.replace(/[&"<>]/g, (c) => `&#${c.charCodeAt(0)};`)}"><script>location.replace(${js})</script>`);
+    res.end(`<!doctype html><meta charset="utf-8"><title>lanedeck</title><meta http-equiv="refresh" content="0;url=${to.replace(/[&"<>]/g, (c) => `&#${c.charCodeAt(0)};`)}"><script>location.replace(${js})</script>`);
     return true;
   }
   return { hosts, check, exchange, isLocal, https };
@@ -91,7 +91,7 @@ export function createGuard({ port, allowedHosts = [], auth = () => ({ token: nu
 export function refuseHttp(res, [code, reason], { html = false } = {}) {
   if (html && code === 401) {
     res.writeHead(401, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" });
-    res.end(`<!doctype html><meta charset="utf-8"><title>selam-deck: access token required</title><body style="font:15px system-ui;margin:3rem;max-width:40rem"><h1 style="font-size:1.2rem">Access token required</h1><p>This deck is reached from outside its own machine. Open it once with <code>?token=&lt;access token&gt;</code> added to the address. The token is in Settings &rarr; General, on the machine itself (http://localhost).</p></body>`);
+    res.end(`<!doctype html><meta charset="utf-8"><title>lanedeck: access token required</title><body style="font:15px system-ui;margin:3rem;max-width:40rem"><h1 style="font-size:1.2rem">Access token required</h1><p>This deck is reached from outside its own machine. Open it once with <code>?token=&lt;access token&gt;</code> added to the address. The token is in Settings &rarr; General, on the machine itself (http://localhost).</p></body>`);
     return;
   }
   res.writeHead(code, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" });

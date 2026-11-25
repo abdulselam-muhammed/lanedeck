@@ -112,7 +112,7 @@ export default function SettingsPage() {
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [err, setErr] = useState<{ tab: Tab; key?: string; message: string } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [setupFor, setSetupFor] = useState<string | null>(null); // a project just added: offer to set up selam-deck in it
+  const [setupFor, setSetupFor] = useState<string | null>(null); // a project just added: offer to set up lanedeck in it
   const loadNow = useLoad().data;
   const [isWin, setIsWin] = useState<boolean | null>(null);
   useEffect(() => { api.devices().then((d) => setIsWin(/win32/i.test(d.local.os))).catch(() => setIsWin(null)); }, []);
@@ -135,7 +135,7 @@ export default function SettingsPage() {
       toast(t("saved"), r.restartRequired ? t("restart") : r.backup ? `${t("backup")}: ${r.backup}` : "", "done");
       await load();
       if (which === "projects") {
-        // A NEW project with a local folder that has no .selam-deck/ yet: ask before writing anything.
+        // A NEW project with a local folder that has no .lanedeck/ yet: ask before writing anything.
         const was = new Set(saved.projects.map((p) => p.id));
         for (const p of draft.projects) {
           if (was.has(p.id) || !p.repoPath) continue;

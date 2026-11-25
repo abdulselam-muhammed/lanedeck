@@ -1,5 +1,5 @@
 {
-  "name": "selam-deck",
+  "name": "lanedeck",
   "version": "0.1.0",
   "private": true,
   "description": "A local control room for working with AI coding agents: CI runners, machine load, Claude Code agents, GitHub PRs and a per-project work map.",
@@ -7,11 +7,11 @@
   "author": "Abdulselam Muhammed",
   "repository": {
     "type": "git",
-    "url": "https://github.com/abdulselam-muhammed/selam-deck"
+    "url": "https://github.com/abdulselam-muhammed/lanedeck"
   },
-  "homepage": "https://github.com/abdulselam-muhammed/selam-deck#readme",
+  "homepage": "https://github.com/abdulselam-muhammed/lanedeck#readme",
   "bugs": {
-    "url": "https://github.com/abdulselam-muhammed/selam-deck/issues"
+    "url": "https://github.com/abdulselam-muhammed/lanedeck/issues"
   },
   "engines": {
     "node": ">=20"

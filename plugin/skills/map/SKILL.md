@@ -1,11 +1,11 @@
 ---
 name: map
-description: Update the project's work map .selam-deck/map.md. Use after finishing, pushing or merging work, or when new work appears, in a project with a .selam-deck/ folder, so the selam-deck dashboard shows current states.
+description: Update the project's work map .lanedeck/map.md. Use after finishing, pushing or merging work, or when new work appears, in a project with a .lanedeck/ folder, so the lanedeck dashboard shows current states.
 ---
 
-# selam-deck: keep the work map current
+# lanedeck: keep the work map current
 
-Protocol version 1; `.selam-deck/PROTOCOL.md` is the source of truth. The map is the single flow code block (a fenced block whose info string is `flow`) in `.selam-deck/map.md`.
+Protocol version 1; `.lanedeck/PROTOCOL.md` is the source of truth. The map is the single flow code block (a fenced block whose info string is `flow`) in `.lanedeck/map.md`.
 
 ## Do
 
@@ -17,6 +17,6 @@ Protocol version 1; `.selam-deck/PROTOCOL.md` is the source of truth. The map is
 ## Rules
 
 - Never delete a line a human wrote; change its state or add beside it. If a line looks wrong, ask (a question in your task file) instead of removing it.
-- Keep exactly one flow block and the first-line marker `<!-- selam-deck protocol: 1 -->`.
+- Keep exactly one flow block and the first-line marker `<!-- lanedeck protocol: 1 -->`.
 - Use only these states: done, now, you, wait, next, later, deferred, blocked.
 - Keep the map general: features, fixes, releases, milestones. Small edits; do not rewrite the file.

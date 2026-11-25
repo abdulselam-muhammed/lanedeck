@@ -11,7 +11,7 @@ import path from "node:path";
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "sd-sec-"));
 const cfg = path.join(tmp, "config.json");
 fs.writeFileSync(cfg, "{}");
-process.env.SELAM_DECK_CONFIG = cfg;
+process.env.LANEDECK_CONFIG = cfg;
 
 const { createGuard } = await import("../server/guard.mjs");
 const { safePath, realRoot, readPlainAsync } = await import("../server/safepath.mjs");
@@ -68,17 +68,17 @@ test("safePath: a junction / symlinked folder escaping repoPath is refused", () 
   assert.equal(safePath(root, ["plain", "new.md"]), path.join(root, "plain", "new.md"));
 });
 
-test("doSetup: a junctioned .selam-deck writes nothing outside", () => {
+test("doSetup: a junctioned .lanedeck writes nothing outside", () => {
   const { repo, outside } = layout("deck-link");
-  dirLink(outside, path.join(repo, ".selam-deck"));
+  dirLink(outside, path.join(repo, ".lanedeck"));
   assert.throws(() => doSetup(repo, "en"), /symlink or junction/);
   assert.deepEqual(ls(outside), []);
 });
 
-test("doSetup: a junctioned .selam-deck/inbox writes nothing outside", () => {
+test("doSetup: a junctioned .lanedeck/inbox writes nothing outside", () => {
   const { repo, outside } = layout("inbox-link");
-  fs.mkdirSync(path.join(repo, ".selam-deck"));
-  dirLink(outside, path.join(repo, ".selam-deck", "inbox"));
+  fs.mkdirSync(path.join(repo, ".lanedeck"));
+  dirLink(outside, path.join(repo, ".lanedeck", "inbox"));
   assert.throws(() => doSetup(repo, "en"), /symlink or junction/);
   assert.deepEqual(ls(outside), []);
   assert.ok(setupStatus(repo, "en").unsafe);
@@ -86,7 +86,7 @@ test("doSetup: a junctioned .selam-deck/inbox writes nothing outside", () => {
 
 test("archiveSetupFile: a junctioned _archive is not written to, and the setup file stays", () => {
   const { repo, outside } = layout("archive-link");
-  const inbox = path.join(repo, ".selam-deck", "inbox");
+  const inbox = path.join(repo, ".lanedeck", "inbox");
   fs.mkdirSync(inbox, { recursive: true });
   fs.writeFileSync(path.join(inbox, "00-setup.md"), "## Steps\n- [x] one\n");
   dirLink(outside, path.join(inbox, "_archive"));
@@ -98,12 +98,12 @@ test("archiveSetupFile: a junctioned _archive is not written to, and the setup f
 test("doSetup + archive: the normal case still works", () => {
   const { repo } = layout("normal");
   const out = doSetup(repo, "en");
-  assert.deepEqual(out.created, [".selam-deck/PROTOCOL.md", ".selam-deck/inbox/00-setup.md"]);
+  assert.deepEqual(out.created, [".lanedeck/PROTOCOL.md", ".lanedeck/inbox/00-setup.md"]);
   assert.equal(out.gitignore, "added");
   assert.equal(doSetup(repo, "en").gitignore, "present");
   assert.deepEqual(addInstructions(repo, ["AGENTS.md"], { create: true }).created, ["AGENTS.md"]);
   assert.deepEqual(addInstructions(repo, ["AGENTS.md"]).already, ["AGENTS.md"]);
-  const inbox = path.join(repo, ".selam-deck", "inbox");
+  const inbox = path.join(repo, ".lanedeck", "inbox");
   assert.equal(archiveSetupFile(inbox, repo), true);
   assert.ok(fs.existsSync(path.join(inbox, "_archive", "00-setup.md")));
 });
@@ -121,20 +121,20 @@ test("addInstructions / .gitignore: a file symlink pointing outside is never app
   assert.equal(st.gitignore.exists, false);
 });
 
-test("readProtocol: a junctioned .selam-deck is not read and is warned about", async () => {
+test("readProtocol: a junctioned .lanedeck is not read and is warned about", async () => {
   const { repo, outside } = layout("read-deck");
   fs.writeFileSync(path.join(outside, "project.md"), "SECRET");
-  dirLink(outside, path.join(repo, ".selam-deck"));
-  const p = await readProtocol(path.join(repo, ".selam-deck"), []);
+  dirLink(outside, path.join(repo, ".lanedeck"));
+  const p = await readProtocol(path.join(repo, ".lanedeck"), []);
   assert.equal(p.project, null);
-  assert.ok(p.warnings.some((w) => /\.selam-deck is a symlink/.test(w)));
+  assert.ok(p.warnings.some((w) => /\.lanedeck is a symlink/.test(w)));
 });
 
 test("readProtocol / readPlainAsync: a symlinked project.md is skipped with a warning", async (t) => {
   const { repo, outside } = layout("read-file");
   const secret = path.join(outside, "secret.md");
   fs.writeFileSync(secret, "SECRET");
-  const dir = path.join(repo, ".selam-deck");
+  const dir = path.join(repo, ".lanedeck");
   fs.mkdirSync(dir);
   if (!fileLink(secret, path.join(dir, "project.md"))) return t.skip("file symlinks need Developer Mode on Windows");
   assert.equal(await readPlainAsync(path.join(dir, "project.md")), null);

@@ -1,14 +1,14 @@
 {
-  "name": "selam-deck",
-  "description": "Claude Code plugin for the selam-deck project protocol",
+  "name": "lanedeck",
+  "description": "Claude Code plugin for the lanedeck project protocol",
   "owner": {
     "name": "Abdulselam Muhammed"
   },
   "plugins": [
     {
-      "name": "selam-deck",
+      "name": "lanedeck",
       "source": "./plugin",
-      "description": "Keep a project's work map, task files and questions in .selam-deck/ so the selam-deck dashboard can follow your AI work"
+      "description": "Keep a project's work map, task files and questions in .lanedeck/ so the lanedeck dashboard can follow your AI work"
     }
   ]
 }

@@ -1,4 +1,4 @@
-// The "set up selam-deck in this project" client: the API (local-only, CSRF) and the dialog / button texts.
+// The "set up lanedeck in this project" client: the API (local-only, CSRF) and the dialog / button texts.
 import { api, ApiError } from "@/lib/settings";
 import { t } from "../../server/i18n/index.mjs";
 

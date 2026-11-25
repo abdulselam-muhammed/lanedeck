@@ -1,6 +1,6 @@
 "use client";
 // TailAdmin's theme context, extended to the viewer's three modes: system → dark → light.
-// Stored as before in localStorage["selamDeck.theme"]; TailAdmin's `.dark` class on <html> does the rest.
+// Stored as before in localStorage["laneDeck.theme"]; TailAdmin's `.dark` class on <html> does the rest.
 import type React from "react";
 import { createContext, useContext, useEffect, useState } from "react";
 import { store } from "@/lib/inbox/model";
@@ -49,4 +49,4 @@ export const useTheme = () => {
 };
 
 /** Runs before paint (in <head>), so the page never flashes the wrong theme. */
-export const themeBootScript = `try{var t=JSON.parse(localStorage.getItem("selamDeck.theme"));var d=t!=="light"&&(t!=="system"||matchMedia("(prefers-color-scheme: dark)").matches);if(d)document.documentElement.classList.add("dark");document.documentElement.style.colorScheme=d?"dark":"light"}catch(e){}`;
+export const themeBootScript = `try{var t=JSON.parse(localStorage.getItem("laneDeck.theme"));var d=t!=="light"&&(t!=="system"||matchMedia("(prefers-color-scheme: dark)").matches);if(d)document.documentElement.classList.add("dark");document.documentElement.style.colorScheme=d?"dark":"light"}catch(e){}`;

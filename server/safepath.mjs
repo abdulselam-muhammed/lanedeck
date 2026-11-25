@@ -1,5 +1,5 @@
 // Path safety for everything the deck reads from or writes into a project folder. The folder is untrusted input: any cloned
-// repo can commit a `.selam-deck/` folder, symlinks and (on Windows) junctions. So:
+// repo can commit a `.lanedeck/` folder, symlinks and (on Windows) junctions. So:
 //   * the project root is resolved to its real path once;
 //   * every component from that root down to the target must exist as a real directory/file, never a symlink or junction
 //     (Node's lstat reports a junction as a symbolic link); components that do not exist yet are created by us, as plain ones;

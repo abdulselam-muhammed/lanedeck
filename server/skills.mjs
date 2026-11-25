@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "plugin", "skills");
-const NAMESPACE = "selam-deck";
+const NAMESPACE = "lanedeck";
 
 export function parseSkill(text) {
   const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/.exec(text);

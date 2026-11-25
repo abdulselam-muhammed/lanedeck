@@ -275,7 +275,7 @@ export function MiniBar({ n, pct }: { n: TreeNode; pct: number }) {
   );
 }
 
-/** The app mark: the neutral selam-deck mark, or the images ui.brand points to (light and dark variants). */
+/** The app mark: the neutral lanedeck mark, or the images ui.brand points to (light and dark variants). */
 export function Logo({ folded }: { folded?: boolean }) {
   const mark = useMark();
   const { ui } = useConfig();

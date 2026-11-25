@@ -1,10 +1,10 @@
-<!-- selam-deck protocol: 1 -->
-# تجهيز المشروع لـ selam-deck
+<!-- lanedeck protocol: 1 -->
+# تجهيز المشروع لـ lanedeck
 
 على الـ AI أن يجهّز ثلاثة ملفات حتى تتابع اللوحة هذا المشروع:
-- `.selam-deck/project.md`: ما هو المشروع، الـ stack، الفرع الافتراضي، وكيف يُشغَّل ويُختبر.
-- `.selam-deck/map.md`: خريطة عمل المشروع، مراحل وخطوات مع حالاتها.
-- `.selam-deck/glossary.md`: مصطلحات خاصة بهذا المشروع فقط.
+- `.lanedeck/project.md`: ما هو المشروع، الـ stack، الفرع الافتراضي، وكيف يُشغَّل ويُختبر.
+- `.lanedeck/map.md`: خريطة عمل المشروع، مراحل وخطوات مع حالاتها.
+- `.lanedeck/glossary.md`: مصطلحات خاصة بهذا المشروع فقط.
 
 ## الخطوات
 - [ ] انسخ الـ prompt أدناه وأرسله إلى الـ AI.
@@ -13,7 +13,7 @@
 
 ## Prompt لإضافة Claude Code
 ```
-/selam-deck:init
+/lanedeck:init
 ```
 
 ## Prompt لأي AI

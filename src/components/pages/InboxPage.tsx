@@ -36,7 +36,7 @@ export default function InboxPage() {
   const n = selected && !selected.startsWith("__") ? tree.nodes.get(selected) : undefined;
   const flowMode = !!n?.file && modes[n.file.name] === "flow" && /```flow\r?\n/.test(n.file.text);
 
- // /inbox on a wide screen reopens the last file you had open (localStorage["selamDeck.selected"]).
+ // /inbox on a wide screen reopens the last file you had open (localStorage["laneDeck.selected"]).
  useEffect(() => {
  if (!wide || selected || !updatedAt) return;
  const last = pstore.get<string>("selected", "");

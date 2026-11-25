@@ -4,10 +4,10 @@ import { spawn } from "node:child_process";
 import { bin, features, hasWsl, isWin, killTree, platform, runFile, safeSpawn } from "../server/platform.mjs";
 
 const withEnv = (k, v, fn) => { const old = process.env[k]; process.env[k] = v; try { return fn(); } finally { if (old === undefined) delete process.env[k]; else process.env[k] = old; } };
-const MISSING = "selam-deck-no-such-binary-xyz";
+const MISSING = "lanedeck-no-such-binary-xyz";
 
-test("SELAM_DECK_PLATFORM overrides the platform checks", () => {
-  withEnv("SELAM_DECK_PLATFORM", "linux", () => {
+test("LANEDECK_PLATFORM overrides the platform checks", () => {
+  withEnv("LANEDECK_PLATFORM", "linux", () => {
     assert.equal(platform(), "linux");
     assert.equal(isWin(), false);
     assert.equal(hasWsl(), false);
@@ -16,14 +16,14 @@ test("SELAM_DECK_PLATFORM overrides the platform checks", () => {
     assert.equal(f.nativeDocker, true);
     assert.match(f.note, /Linux/);
   });
-  withEnv("SELAM_DECK_PLATFORM", "win32", () => {
+  withEnv("LANEDECK_PLATFORM", "win32", () => {
     assert.equal(isWin(), true);
     assert.equal(features().note, null);
   });
 });
 
 test("tool paths can be pointed at a missing binary", () => {
-  withEnv("SELAM_DECK_POWERSHELL", MISSING, () => assert.equal(bin.powershell(), MISSING));
+  withEnv("LANEDECK_POWERSHELL", MISSING, () => assert.equal(bin.powershell(), MISSING));
 });
 
 test("safeSpawn of a missing binary reports through the callback and does not throw or crash", async () => {
@@ -44,9 +44,9 @@ test("runFile resolves with missing: true for a missing binary", async () => {
 });
 
 test("killTree ends a child with a missing taskkill (win32) and with plain kill (linux)", async () => {
-  for (const [plat, extra] of [["win32", { SELAM_DECK_TASKKILL: MISSING }], ["linux", {}]]) {
+  for (const [plat, extra] of [["win32", { LANEDECK_TASKKILL: MISSING }], ["linux", {}]]) {
     const old = { ...process.env };
-    process.env.SELAM_DECK_PLATFORM = plat; Object.assign(process.env, extra);
+    process.env.LANEDECK_PLATFORM = plat; Object.assign(process.env, extra);
     try {
       const c = spawn(process.execPath, ["-e", "setTimeout(()=>{},60000)"], { stdio: "ignore" });
       await new Promise((r) => setTimeout(r, 150));

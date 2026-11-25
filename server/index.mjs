@@ -1,4 +1,4 @@
-// selam-deck — one process, bound to the configured host (127.0.0.1 by default).
+// lanedeck — one process, bound to the configured host (127.0.0.1 by default).
 //
 //   npm run build && npm start      production (recommended for daily use)
 //   npm run dev                     development, with hot reload
@@ -39,7 +39,7 @@ const dev = process.argv.includes("--dev");
   // Reachable from outside with no access token: refuse to start (server/guard.mjs, config.mjs remoteAuthProblem).
   const problem = remoteAuthProblem(config.server);
   if (problem) {
-    console.error(`selam-deck will not start: ${problem}\nConfig file: ${configPath()}`);
+    console.error(`lanedeck will not start: ${problem}\nConfig file: ${configPath()}`);
     process.exit(1);
   }
 }

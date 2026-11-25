@@ -29,7 +29,7 @@ export function DocText({ f }: { f: InboxFile }) {
  };
  for (const l of lines) {
  if (/^\*\*[^*\n]*agent[^*\n]*:\*\*/i.test(l)) continue; // the live box above shows the agent
- if (/^\s*<!--\s*selam-deck protocol:\s*\d+\s*-->\s*$/.test(l)) continue; // the protocol marker line is not content
+ if (/^\s*<!--\s*lanedeck protocol:\s*\d+\s*-->\s*$/.test(l)) continue; // the protocol marker line is not content
  const m = l.match(QID);
  if (m) {
  flush();

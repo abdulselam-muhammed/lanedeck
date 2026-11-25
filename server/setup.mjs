@@ -1,5 +1,5 @@
-// "Set up selam-deck in this project": the only code that WRITES into a project repo. Everything it may write is listed here:
-//   .selam-deck/PROTOCOL.md, .selam-deck/inbox/00-setup.md, one line in .gitignore, the marker block in AGENTS.md / CLAUDE.md,
+// "Set up lanedeck in this project": the only code that WRITES into a project repo. Everything it may write is listed here:
+//   .lanedeck/PROTOCOL.md, .lanedeck/inbox/00-setup.md, one line in .gitignore, the marker block in AGENTS.md / CLAUDE.md,
 // and the move of the finished 00-setup.md into inbox/_archive/. Nothing is ever overwritten; every path is built from a fixed
 // name under the project's repoPath (taken from the config, never from the request). The folder itself is untrusted (a cloned
 // repo can ship symlinks and junctions): every read and write goes through server/safepath.mjs, which refuses a symlinked
@@ -12,8 +12,8 @@ import { appendPlain, createPlain, lexists as exists, mkdirSafe, readPlain, real
 
 const TEMPLATES = path.join(ROOT, "templates");
 export const IGNORE_LINE = `${PROTOCOL_DIR}/inbox/`;
-export const BLOCK_START = "<!-- selam-deck:start -->";
-export const BLOCK_END = "<!-- selam-deck:end -->";
+export const BLOCK_START = "<!-- lanedeck:start -->";
+export const BLOCK_END = "<!-- lanedeck:end -->";
 export const INSTRUCTION_FILES = ["AGENTS.md", "CLAUDE.md"];
 
 const tpl = (name) => fs.readFileSync(path.join(TEMPLATES, name), "utf8").replace(/\r\n?/g, "\n");
@@ -21,7 +21,7 @@ const langName = (lang) => (lang === "ar" ? "Arabic" : "English");
 
 /** The full English prompt for "any AI", with the language filled in. */
 export const anyPrompt = (lang) => tpl("setup-prompt.txt").trim().replace("{{LANG}}", langName(lang));
-export const pluginPrompt = "/selam-deck:init";
+export const pluginPrompt = "/lanedeck:init";
 export const setupFile = (lang) => tpl(lang === "ar" ? "00-setup.ar.md" : "00-setup.en.md").replace("{{PROMPT}}", () => anyPrompt(lang));
 export const instructionBlock = () => tpl("AGENTS-block.md");
 
@@ -127,7 +127,7 @@ function stepCounts(text) {
 
 /**
  * Move inbox/00-setup.md to inbox/_archive/ with its steps ticked. Only this one file is ever moved. Returns true when it moved.
- * `repoPath`: when the inbox is the project's own `.selam-deck/inbox`, every component from the repo down is checked. Any other
+ * `repoPath`: when the inbox is the project's own `.lanedeck/inbox`, every component from the repo down is checked. Any other
  * inbox (an explicit inboxDir from the config) is trusted as a folder, and only what lies below it is checked.
  */
 export function archiveSetupFile(inboxDir, repoPath) {

@@ -49,7 +49,7 @@ export function createBudget(limit, now = Date.now) {
   };
 }
 
-const shared = (globalThis.__selamDeckBudget ??= createBudget(() => getConfig().github.rateBudgetPerHour));
+const shared = (globalThis.__laneDeckBudget ??= createBudget(() => getConfig().github.rateBudgetPerHour));
 export const spend = shared.spend;
 export const refund = shared.refund;
 export const usage = shared.usage;

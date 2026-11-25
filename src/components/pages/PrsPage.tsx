@@ -354,7 +354,7 @@ export default function PrsPage() {
 
   useEffect(() => {
     try {
-      const v = lsRead("selamDeck.prs.mine");
+      const v = lsRead("laneDeck.prs.mine");
       if (v != null) setMine(v === "1");
     } catch {
       /* private mode */
@@ -363,7 +363,7 @@ export default function PrsPage() {
   const setMineSaved = (v: boolean) => {
     setMine(v);
     try {
-      lsWrite("selamDeck.prs.mine", v ? "1" : "0");
+      lsWrite("laneDeck.prs.mine", v ? "1" : "0");
     } catch {
       /* private mode */
     }

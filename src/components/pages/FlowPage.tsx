@@ -15,7 +15,7 @@ import { useProject, useT } from "@/context/ConfigContext";
 
 export default function FlowPage() {
  const { files, selected, updatedAt, protocol } = useInbox();
- // Protocol projects: .selam-deck/map.md is THE map, flow blocks in inbox files are ignored.
+ // Protocol projects: .lanedeck/map.md is THE map, flow blocks in inbox files are ignored.
  const mapText = protocol?.map ?? null;
  const { base } = useProject();
  const t = useT();
@@ -35,7 +35,7 @@ export default function FlowPage() {
  desc={
  mapText ? (
  <span dir="ltr" className="mono">
- .selam-deck/map.md
+ .lanedeck/map.md
  </span>
  ) : f ? (
  <span dir="ltr" className="mono">

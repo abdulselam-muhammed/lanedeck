@@ -51,7 +51,7 @@ export type ToastItem = { id: number; title: string; body: string; kind: ToastKi
 type Ctx = {
   files: InboxFile[];
   agents: Agent[];
-  /** The .selam-deck/ data of a protocol project; null in legacy mode. */
+  /** The .lanedeck/ data of a protocol project; null in legacy mode. */
   protocol: Protocol | null;
   tree: Tree;
   connected: boolean;
@@ -228,7 +228,7 @@ function InboxProvider({ children, projectId }: { children: React.ReactNode; pro
     },
     [router, base],
   );
-  // The last node opened stays in localStorage["selamDeck.selected"], as before (/inbox reopens it).
+  // The last node opened stays in localStorage["laneDeck.selected"], as before (/inbox reopens it).
   useEffect(() => {
     if (selected && !selected.startsWith("__")) pstore.set("selected", selected);
   }, [selected, pstore]);

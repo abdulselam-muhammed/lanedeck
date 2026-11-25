@@ -47,9 +47,9 @@ export type Agent = {
   stopped?: number | null; // when it was stopped from outside
   progress?: Progress;
 };
-/** `proto`: the file belongs to a project that follows the .selam-deck protocol (docs/PROTOCOL.md). */
+/** `proto`: the file belongs to a project that follows the .lanedeck protocol (docs/PROTOCOL.md). */
 export type RawFile = { name: string; text: string; mtime: number; proto?: boolean };
-/** The .selam-deck/ data of a protocol project (server/protocol.mjs). */
+/** The .lanedeck/ data of a protocol project (server/protocol.mjs). */
 export type Protocol = {
   version: number;
   project: string | null;
@@ -269,18 +269,18 @@ export function ago(ms: number | null | undefined) {
 export const openQuestions = (files: InboxFile[]) =>
   files.filter((f) => !isReadme(f)).flatMap((f) => f.questions.map((q) => ({ f, q })));
 
-// ---------- per-viewer storage: localStorage["selamDeck.<key>"], JSON, every access guarded ----------
+// ---------- per-viewer storage: localStorage["laneDeck.<key>"], JSON, every access guarded ----------
 export const store = {
   get<T>(k: string, d: T): T {
     try {
-      const v = lsRead("selamDeck." + k);
+      const v = lsRead("laneDeck." + k);
       return v === null ? d : (JSON.parse(v) as T);
     } catch {
       return d;
     }
   },
   set(k: string, v: unknown) {
-    lsWrite("selamDeck." + k, JSON.stringify(v));
+    lsWrite("laneDeck." + k, JSON.stringify(v));
   },
 };
 export const objOf = (v: unknown): Record<string, any> => // eslint-disable-line @typescript-eslint/no-explicit-any

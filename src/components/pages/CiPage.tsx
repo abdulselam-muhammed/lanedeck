@@ -35,7 +35,7 @@ function Spark({ data, labels, color, name }: { data: number[]; labels: string[]
 }
 
 type Tab = "mine" | "org" | "queue";
-const TAB_KEY = "selamDeck.ci.tab";
+const TAB_KEY = "laneDeck.ci.tab";
 const hhmm = (t: number) => new Date(t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
 function Kpis({ go }: { go: (t: Tab) => void }) {

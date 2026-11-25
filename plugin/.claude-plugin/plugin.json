@@ -1,12 +1,12 @@
 {
-  "name": "selam-deck",
+  "name": "lanedeck",
   "version": "0.1.0",
-  "description": "Work with the selam-deck project protocol (.selam-deck/): set a project up, report each task, keep the work map current, handle answers, check the folder.",
+  "description": "Work with the lanedeck project protocol (.lanedeck/): set a project up, report each task, keep the work map current, handle answers, check the folder.",
   "author": {
     "name": "Abdulselam Muhammed"
   },
-  "homepage": "https://github.com/abdulselam-muhammed/selam-deck",
-  "repository": "https://github.com/abdulselam-muhammed/selam-deck",
+  "homepage": "https://github.com/abdulselam-muhammed/lanedeck",
+  "repository": "https://github.com/abdulselam-muhammed/lanedeck",
   "license": "MIT",
-  "keywords": ["selam-deck", "protocol", "dashboard", "work-map"]
+  "keywords": ["lanedeck", "protocol", "dashboard", "work-map"]
 }

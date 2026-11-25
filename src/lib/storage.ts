@@ -1,4 +1,4 @@
-// localStorage under the "selamDeck.*" keys. Every access is guarded (private mode, blocked storage).
+// localStorage under the "laneDeck.*" keys. Every access is guarded (private mode, blocked storage).
 export function lsRead(key: string): string | null {
   try {
     return localStorage.getItem(key);

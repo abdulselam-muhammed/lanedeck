@@ -1,15 +1,15 @@
 ---
 name: report
-description: Keep one task file per task in .selam-deck/inbox/. Use at the start of ANY task in a project that has a .selam-deck/ folder, and while working on it, to create or update that task's file with its steps, questions and final result for the selam-deck dashboard.
+description: Keep one task file per task in .lanedeck/inbox/. Use at the start of ANY task in a project that has a .lanedeck/ folder, and while working on it, to create or update that task's file with its steps, questions and final result for the lanedeck dashboard.
 ---
 
-# selam-deck: report each task
+# lanedeck: report each task
 
-Applies only when the project has `.selam-deck/`. Protocol version 1; `.selam-deck/PROTOCOL.md` is the source of truth.
+Applies only when the project has `.lanedeck/`. Protocol version 1; `.lanedeck/PROTOCOL.md` is the source of truth.
 
 ## At the start of a task
 
-Create `.selam-deck/inbox/<short-name>.md` (lowercase, dashes), or reopen the file of the same task. One file per task; never mix tasks, never rename a running task's file.
+Create `.lanedeck/inbox/<short-name>.md` (lowercase, dashes), or reopen the file of the same task. One file per task; never mix tasks, never rename a running task's file.
 
 ```
 # Title of the task

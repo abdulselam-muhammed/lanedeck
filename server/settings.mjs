@@ -313,7 +313,7 @@ export function createSettings({ port, broadcast, refresh = async () => {}, relo
         return send(res, 200, await probeSsh(alias)), true;
       }
       if (route === "setup" || route === "instructions" || route === "done") {
-        // "Set up selam-deck in this project" (server/setup.mjs): the project is the /api/p/<id>/ one, its folder comes from the config.
+        // "Set up lanedeck in this project" (server/setup.mjs): the project is the /api/p/<id>/ one, its folder comes from the config.
         const proj = projectById(pid);
         if (!proj) return send(res, 404, { error: "unknown project" }), true;
         const lang = getConfig().ui.lang;

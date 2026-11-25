@@ -9,7 +9,7 @@ import path from "node:path";
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "sd-tok-"));
 process.on("exit", () => { try { fs.rmSync(tmp, { recursive: true, force: true }); } catch { /* ignore */ } });
 fs.writeFileSync(path.join(tmp, "config.json"), "{}");
-process.env.SELAM_DECK_CONFIG = path.join(tmp, "config.json");
+process.env.LANEDECK_CONFIG = path.join(tmp, "config.json");
 
 const { createGuard, sameToken, COOKIE } = await import("../server/guard.mjs");
 const { checkSettings, remoteAuthProblem } = await import("../server/config.mjs");

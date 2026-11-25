@@ -17,7 +17,7 @@ import { homedir } from "node:os";
 import config, { getConfig, projectById } from "./config.mjs";
 import { refund, spend } from "./budget.mjs";
 import { ts } from "./i18n/server.mjs";
-import { PROTOCOL_DIR, protocolDir, readProtocol, questionsOf } from "./protocol.mjs";
+import { protocolDirName, protocolDir, readProtocol, questionsOf } from "./protocol.mjs";
 import { archiveSetup } from "./setup.mjs";
 import { readPlainAsync, realRoot, unsafeReason } from "./safepath.mjs";
 
@@ -29,14 +29,14 @@ const RUNNING_MS = 10 * 60e3;
 /**
  * Every .md file in the inbox, with its text and modification time.
  * Protocol mode (the inbox lives in an untrusted project folder): symlinks and junctions are never followed. A symlinked inbox
- * folder (or .selam-deck/) is not read at all, and a symlinked entry is skipped and listed in `skipped` (shown as a protocol
- * warning). `repoPath`: given when INBOX is the project's own .selam-deck/inbox, so every component from the repo down is checked.
+ * folder (or .lanedeck/) is not read at all, and a symlinked entry is skipped and listed in `skipped` (shown as a protocol
+ * warning). `repoPath`: given when INBOX is the project's own .lanedeck/inbox, so every component from the repo down is checked.
  */
 async function inboxFiles(INBOX, proto = false, repoPath = null) {
   let names = [];
   if (proto && repoPath) {
     let why = null;
-    try { why = unsafeReason(realRoot(repoPath), [PROTOCOL_DIR, "inbox"]); } catch { /* the folder is gone: readdir says so */ }
+    try { why = unsafeReason(realRoot(repoPath), [protocolDirName(repoPath), "inbox"]); } catch { /* the folder is gone: readdir says so */ }
     if (why) return { files: [], error: `inbox folder not read: ${why}`, skipped: [] };
   }
   try {
@@ -576,8 +576,8 @@ const instances = new Map();
 const globalSticky = new Map(); // topic -> last JSON text (ci.runners ...): the same for every project, replayed to a new inbox
 
 function createInbox(P) {
-  // Protocol mode: the repo has a .selam-deck/ folder (docs/PROTOCOL.md). Its inbox/ is the inbox unless the config sets inboxDir.
-  // Re-evaluated on every read, so a project that gets its .selam-deck/ folder (the setup dialog, or by hand) switches to
+  // Protocol mode: the repo has a .lanedeck/ folder (docs/PROTOCOL.md). Its inbox/ is the inbox unless the config sets inboxDir.
+  // Re-evaluated on every read, so a project that gets its .lanedeck/ folder (the setup dialog, or by hand) switches to
   // protocol mode without a restart.
   let PDIR = null, INBOX = P.inboxDir;
   const watchers = [];
@@ -599,7 +599,7 @@ function createInbox(P) {
 
   async function computeSnapshot() {
     syncMode();
-    const own = PDIR && !P.inboxExplicit ? P.repoPath : null; // the inbox is the project's .selam-deck/inbox: check it from the repo down
+    const own = PDIR && !P.inboxExplicit ? P.repoPath : null; // the inbox is the project's .lanedeck/inbox: check it from the repo down
     let [inbox, agents] = await Promise.all([inboxFiles(INBOX, !!PDIR, own), PROJECT ? liveAgents(PROJECT) : []]);
     let protocol = PDIR ? await readProtocol(PDIR, inbox.files ?? [], inbox.skipped) : undefined; // undefined: legacy mode, the snapshot is unchanged
     // The finished setup file archives itself (only that file; see server/setup.mjs).
@@ -615,7 +615,7 @@ function createInbox(P) {
   // Typed events, each naming the slice that changed; the client patches only that slice:
   //   snapshot   the whole state ({inbox,files,agents,error}); on connect/reconnect, and as the 15 s safety net ONLY when
   //              something changed since the last snapshot was sent
-  //   protocol   the .selam-deck/ data (project.md, map.md, glossary, warnings) when it changed; protocol-mode projects only
+  //   protocol   the .lanedeck/ data (project.md, map.md, glossary, warnings) when it changed; protocol-mode projects only
   //   inbox      {changed:[file], removed:[name], error}   the files that differ from what the clients have
   //   agents     {changed:[agent], removed:[id]}            the live agents that differ
   //   ci.runners the runners summary (busy/total/queued/ours) -- published by server/index.mjs from the CI reader

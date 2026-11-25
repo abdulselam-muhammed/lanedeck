@@ -8,7 +8,7 @@ import { useLoad } from "./LoadContext";
 import { lsRead } from "@/lib/storage";
 import { useT, type TFn } from "@/context/ConfigContext";
 
-const KEY = "selamDeck.loadBannerHiddenUntil";
+const KEY = "laneDeck.loadBannerHiddenUntil";
 const HIDE_MS = 10 * 60 * 1000;
 
 export function etaText(t: TFn, eta?: { minutes: number | null; approximate: boolean; untilRestart?: boolean }) {

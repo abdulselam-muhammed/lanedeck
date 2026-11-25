@@ -19,7 +19,7 @@ jobs:
       - name: server starts on Linux and answers
         run: |
           echo "{}" > "$RUNNER_TEMP/c.json"
-          PORT=4998 SELAM_DECK_CONFIG="$RUNNER_TEMP/c.json" node server/index.mjs > "$RUNNER_TEMP/s.log" 2>&1 &
+          PORT=4998 LANEDECK_CONFIG="$RUNNER_TEMP/c.json" node server/index.mjs > "$RUNNER_TEMP/s.log" 2>&1 &
           for i in $(seq 1 30); do curl -sf 127.0.0.1:4998/api/config >/dev/null && break; sleep 1; done
           curl -sf 127.0.0.1:4998/api/config >/dev/null
           curl -sf 127.0.0.1:4998/api/load | grep -q '"platform":"linux"'

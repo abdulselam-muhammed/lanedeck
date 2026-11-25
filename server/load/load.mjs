@@ -93,7 +93,7 @@ export function createLoad(opts = {}) {
       const cmd = p.cmd || "";
       const wt = /[\\/]worktrees[\\/](agent-[^\\/\s"']+)/i.exec(cmd) || /[\\/]infra[\\/](wt-[^\\/\s"']+)/i.exec(cmd);
       if (wt) return { key: "node:" + wt[1], label: "node — " + wt[1], kind: "node" };
-      if (/selam-deck|agents-inbox-viewer|viewer-phase/i.test(cmd)) return { key: "node:viewer", label: "node — this deck", kind: "other" };
+      if (/lanedeck|agents-inbox-viewer|viewer-phase/i.test(cmd)) return { key: "node:viewer", label: "node — this deck", kind: "other" };
       return { key: "node:other", label: ts("load.srv.nodeOther"), kind: "node" };
     }
     if (n.startsWith("vmmem")) return { key: "wsl", label: "WSL (" + p.n + ")", kind: "wsl" };

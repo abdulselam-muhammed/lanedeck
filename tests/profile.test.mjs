@@ -10,7 +10,7 @@ process.on("exit", () => { try { fs.rmSync(tmp, { recursive: true, force: true }
 fs.mkdirSync(path.join(tmp, "profiles", "demo"), { recursive: true });
 fs.writeFileSync(path.join(tmp, "profiles", "demo", "profile.json"), JSON.stringify({ name: "demo", text: { "who.reviewer": "With the lead" } }));
 fs.writeFileSync(path.join(tmp, "config.json"), JSON.stringify({ projects: [{ id: "p", name: "P", profile: "demo" }, { id: "q", name: "Q", profile: "nope" }, { id: "r", name: "R" }] }));
-process.env.SELAM_DECK_CONFIG = path.join(tmp, "config.json");
+process.env.LANEDECK_CONFIG = path.join(tmp, "config.json");
 
 const { loadProfile, projectById, profileDirs } = await import("../server/config.mjs");
 

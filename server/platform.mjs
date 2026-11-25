@@ -1,19 +1,19 @@
 // Platform adapters: ONE place that decides what this OS can do, and the helpers every child process goes through.
-// SELAM_DECK_PLATFORM (win32 | linux | darwin) overrides process.platform for tests. SELAM_DECK_POWERSHELL / _WSL /
+// LANEDECK_PLATFORM (win32 | linux | darwin) overrides process.platform for tests. LANEDECK_POWERSHELL / _WSL /
 // _TASKKILL / _DOCKER override the tool paths (point them at a missing binary to test the "not installed" states).
 import { execFile, spawn } from "node:child_process";
 import os from "node:os";
 
-export const platform = () => process.env.SELAM_DECK_PLATFORM || process.platform;
+export const platform = () => process.env.LANEDECK_PLATFORM || process.platform;
 export const isWin = () => platform() === "win32";
 export const PLATFORM_NAMES = { win32: "Windows", linux: "Linux", darwin: "macOS" };
 export const platformName = () => PLATFORM_NAMES[platform()] || platform();
 
 export const bin = {
-  powershell: () => process.env.SELAM_DECK_POWERSHELL || "powershell.exe",
-  wsl: () => process.env.SELAM_DECK_WSL || "wsl.exe",
-  taskkill: () => process.env.SELAM_DECK_TASKKILL || "taskkill",
-  docker: () => process.env.SELAM_DECK_DOCKER || "docker",
+  powershell: () => process.env.LANEDECK_POWERSHELL || "powershell.exe",
+  wsl: () => process.env.LANEDECK_WSL || "wsl.exe",
+  taskkill: () => process.env.LANEDECK_TASKKILL || "taskkill",
+  docker: () => process.env.LANEDECK_DOCKER || "docker",
 };
 
 /** WSL exists only on Windows: there the local docker is reached through wsl.exe, elsewhere directly. */

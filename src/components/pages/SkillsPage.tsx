@@ -1,5 +1,5 @@
 "use client";
-// /skills (machine level): the selam-deck plugin for Claude Code and how to install it, plus every skill it ships.
+// /skills (machine level): the lanedeck plugin for Claude Code and how to install it, plus every skill it ships.
 // The skills come from /api/skills (plugin/skills/*/SKILL.md read at runtime); the plain-language explanations
 // below are keyed by skill name and only add the "what / when / example" text, so a new skill still shows up
 // (with its own description) before anyone writes an explanation for it.
@@ -10,7 +10,7 @@ import { useT, type TFn } from "@/context/ConfigContext";
 
 type Skill = { name: string; command: string; description: string; byYou: boolean; body: string };
 
-const INSTALL = ["/plugin marketplace add abdulselam-muhammed/selam-deck", "/plugin install selam-deck@selam-deck"];
+const INSTALL = ["/plugin marketplace add abdulselam-muhammed/lanedeck", "/plugin install lanedeck@lanedeck"];
 
 const btn = "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 text-theme-xs font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-white/[0.04]";
 

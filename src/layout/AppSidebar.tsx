@@ -1,7 +1,7 @@
 "use client";
 // VS Code-like navigation: a 48px activity bar (icons only, tooltips) for the machine sections, and a
 // collapsible 220px side panel for the current project (switcher + its pages). On phones the activity bar
-// stays and the panel is a drawer. The panel collapse is remembered (selamDeck.panelCollapsed).
+// stays and the panel is a drawer. The panel collapse is remembered (laneDeck.panelCollapsed).
 import { useBranch, useConfig, useMark, useProject, useT } from "@/context/ConfigContext";
 import { useAllAgents } from "@/components/pages/AgentsPage";
 import { tr } from "@/lib/settings";

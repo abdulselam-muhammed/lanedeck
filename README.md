@@ -1,8 +1,8 @@
-# selam-deck
+# lanedeck
 
 A local control room for working with AI coding agents: CI runners, machine load, Claude Code agents, GitHub PRs and a per-project work map, in one dashboard.
 
-![selam-deck machine overview](docs/screenshots/machine-overview.png)
+![lanedeck machine overview](docs/screenshots/machine-overview.png)
 
 ## Features
 
@@ -19,9 +19,9 @@ A local control room for working with AI coding agents: CI runners, machine load
 **Project level** (one section per project you add)
 
 - **Overview**: what the project is, active agents, inbox activity, open questions, the PR and branch state.
-- **Questions and Inbox**: the tasks your AI writes (`.selam-deck/inbox/`), their steps and the questions waiting for your answer.
+- **Questions and Inbox**: the tasks your AI writes (`.lanedeck/inbox/`), their steps and the questions waiting for your answer.
 - **Merge board**: every open PR, live: where it stands, who it waits for, what failed, what merged, and conflicts down to the hunk.
-- **Work map**: what is done, in progress, waiting and next, drawn from `.selam-deck/map.md`.
+- **Work map**: what is done, in progress, waiting and next, drawn from `.lanedeck/map.md`.
 - **Branch and status**: whether your local clone is behind the default branch on GitHub.
 - **Project glossary**: the terms of the project, next to a built-in general glossary (English or Arabic).
 
@@ -37,14 +37,14 @@ Requirements:
 - optional: WSL with docker (Windows) or a native `docker` (Linux/macOS) for the local CI runners panel; `ssh` for remote machines
 
 ```bash
-git clone https://github.com/abdulselam-muhammed/selam-deck.git
-cd selam-deck
+git clone https://github.com/abdulselam-muhammed/lanedeck.git
+cd lanedeck
 npm ci
 npm run build
 npm start
 ```
 
-Open <http://127.0.0.1:4280>. `npm run dev` runs a development server instead. (`npx selam-deck` is planned for a later release.)
+Open <http://127.0.0.1:4280>. `npm run dev` runs a development server instead. (`npx lanedeck` is planned for a later release.)
 
 The deck starts with defaults and no project. Open Settings, then Projects, then Add project, pick a local folder and it fills in the repo, branch and CI checks.
 
@@ -54,11 +54,11 @@ One JSON file, deep-merged over generic built-in defaults:
 
 | OS | Default path |
 |---|---|
-| Windows | `%APPDATA%\selam-deck\config.json` |
-| Linux | `$XDG_CONFIG_HOME/selam-deck/config.json` or `~/.config/selam-deck/config.json` |
-| macOS | `~/.config/selam-deck/config.json` |
+| Windows | `%APPDATA%\lanedeck\config.json` |
+| Linux | `$XDG_CONFIG_HOME/lanedeck/config.json` or `~/.config/lanedeck/config.json` |
+| macOS | `~/.config/lanedeck/config.json` |
 
-Set `SELAM_DECK_CONFIG` to use another file (it must exist). Copy [`config.example.json`](config.example.json) to the path above and edit it, or use the **Settings** page, which edits the same file (atomically, keeping the last 20 backups). A bad value stops the server with a message naming the key.
+Set `LANEDECK_CONFIG` to use another file (it must exist). Copy [`config.example.json`](config.example.json) to the path above and edit it, or use the **Settings** page, which edits the same file (atomically, keeping the last 20 backups). A bad value stops the server with a message naming the key.
 
 | Key | Meaning |
 |---|---|
@@ -71,14 +71,14 @@ Set `SELAM_DECK_CONFIG` to use another file (it must exist). Copy [`config.examp
 
 Environment overrides: `PORT`, `INBOX_DIR`, `CLAUDE_PROJECT_DIR`.
 
-**Profiles.** A project may name a `profile`: a folder `<config folder>/profiles/<name>/profile.json` (next to `config.json`, or next to the default config file when `SELAM_DECK_CONFIG` points elsewhere) with project-specific wording and a glossary. Without one the deck uses neutral text.
+**Profiles.** A project may name a `profile`: a folder `<config folder>/profiles/<name>/profile.json` (next to `config.json`, or next to the default config file when `LANEDECK_CONFIG` points elsewhere) with project-specific wording and a glossary. Without one the deck uses neutral text.
 
-## Projects and the `.selam-deck` protocol
+## Projects and the `.lanedeck` protocol
 
-selam-deck follows the work of each project through a small folder of plain Markdown, `.selam-deck/`, in the project:
+lanedeck follows the work of each project through a small folder of plain Markdown, `.lanedeck/`, in the project:
 
 ```
-.selam-deck/
+.lanedeck/
   project.md    what the project is
   map.md        the work map: done, now, waiting, next
   glossary.md   terms of this project
@@ -89,15 +89,15 @@ The human and the AI write these files; the dashboard reads them and, only after
 
 ## Use with your AI
 
-- **Claude Code**: install the plugin once, then run `/selam-deck:init` in a project.
+- **Claude Code**: install the plugin once, then run `/lanedeck:init` in a project.
 
   ```
-  /plugin marketplace add abdulselam-muhammed/selam-deck
-  /plugin install selam-deck@selam-deck
+  /plugin marketplace add abdulselam-muhammed/lanedeck
+  /plugin install lanedeck@lanedeck
   ```
 
   To try it without installing: `claude --plugin-dir ./plugin`. Details in [plugin/README.md](plugin/README.md).
-- **Any other AI** (Cursor, Codex, Gemini and so on): they cannot use the plugin. Open the project's setup task in the Inbox and press "Copy prompt (any AI)", then paste it into your AI. To make every session follow the protocol, press "Add selam-deck instructions to AGENTS.md / CLAUDE.md", which adds one marked block ([templates/AGENTS-block.md](templates/AGENTS-block.md)). Nothing is written into a project before you confirm.
+- **Any other AI** (Cursor, Codex, Gemini and so on): they cannot use the plugin. Open the project's setup task in the Inbox and press "Copy prompt (any AI)", then paste it into your AI. To make every session follow the protocol, press "Add lanedeck instructions to AGENTS.md / CLAUDE.md", which adds one marked block ([templates/AGENTS-block.md](templates/AGENTS-block.md)). Nothing is written into a project before you confirm.
 
 ## Security model
 
@@ -117,7 +117,7 @@ The human and the AI write these files; the dashboard reads them and, only after
 | CI runners, this machine | yes (docker inside WSL) | yes with a native `docker` on `PATH` |
 | CI runners, remote machines (ssh) | yes | yes |
 
-A missing tool (`powershell.exe`, `wsl.exe`, `docker`, `ssh`) switches that one feature off with a message on the page; it never stops the server. Linux and macOS are covered by tests that force the platform (`SELAM_DECK_PLATFORM=linux`), not yet by real machines.
+A missing tool (`powershell.exe`, `wsl.exe`, `docker`, `ssh`) switches that one feature off with a message on the page; it never stops the server. Linux and macOS are covered by tests that force the platform (`LANEDECK_PLATFORM=linux`), not yet by real machines.
 
 ## Screenshots
 
@@ -131,7 +131,7 @@ A missing tool (`powershell.exe`, `wsl.exe`, `docker`, `ssh`) switches that one 
 
 ## Roadmap
 
-- `npx selam-deck` packaging
+- `npx lanedeck` packaging
 - Enabling a CI runner from a device card
 - Real-machine testing on Linux and macOS, per-process load groups there
 - More languages for the interface

@@ -1,16 +1,16 @@
-<!-- selam-deck protocol: 1 -->
-# selam-deck project protocol (version 1)
+<!-- lanedeck protocol: 1 -->
+# lanedeck project protocol (version 1)
 
-selam-deck is a dashboard for organising and closely following work done with AI agents, GitHub PRs and CI.
+lanedeck is a dashboard for organising and closely following work done with AI agents, GitHub PRs and CI.
 This file is the contract between the dashboard, the human and the AI agents working in a project.
 Everything is plain Markdown in one folder, so any agent can read and write it without tools.
 
 ## The project folder
 
-Each project that follows the protocol has a `.selam-deck/` folder at the repository root:
+Each project that follows the protocol has a `.lanedeck/` folder at the repository root:
 
 ```
-.selam-deck/
+.lanedeck/
   PROTOCOL.md   a copy of this file, written by the dashboard
   project.md    what the project is: purpose, stack, default branch, how to run and test
   map.md        the project's work map: what is done, being built, waiting, next
@@ -19,18 +19,18 @@ Each project that follows the protocol has a `.selam-deck/` folder at the reposi
 ```
 
 - `inbox/` must be in `.gitignore` (the tasks are working notes, not history).
-- The human and the AI write these files; the dashboard reads them. The dashboard writes only when you press "Set up selam-deck" (and confirm) in the Settings: it creates `PROTOCOL.md` and `inbox/00-setup.md` if missing, adds the `.selam-deck/inbox/` line to `.gitignore`, and appends a marked block to `AGENTS.md` / `CLAUDE.md` when you choose those files. It never overwrites an existing file.
+- The human and the AI write these files; the dashboard reads them. The dashboard writes only when you press "Set up lanedeck" (and confirm) in the Settings: it creates `PROTOCOL.md` and `inbox/00-setup.md` if missing, adds the `.lanedeck/inbox/` line to `.gitignore`, and appends a marked block to `AGENTS.md` / `CLAUDE.md` when you choose those files. It never overwrites an existing file.
 - One file moves on its own: when the last step of `inbox/00-setup.md` is ticked (or you press "Setup done"), the dashboard moves it to `inbox/_archive/00-setup.md`. Do not rely on that file staying in `inbox/`. The dashboard moves no other file.
-- The first line of every file may be the marker `<!-- selam-deck protocol: 1 -->`.
+- The first line of every file may be the marker `<!-- lanedeck protocol: 1 -->`.
   It is optional for inbox files; a missing marker means version 1. A higher number than the dashboard knows is shown as a warning.
-- If `inbox/` is missing the inbox is empty. If the dashboard config sets `inboxDir` for the project, that folder is the inbox INSTEAD of `.selam-deck/inbox/`: the setup file and the task files must then live there, and `.selam-deck/inbox/` is not shown. Leave `inboxDir` unset for projects that follow this protocol.
+- If `inbox/` is missing the inbox is empty. If the dashboard config sets `inboxDir` for the project, that folder is the inbox INSTEAD of `.lanedeck/inbox/`: the setup file and the task files must then live there, and `.lanedeck/inbox/` is not shown. Leave `inboxDir` unset for projects that follow this protocol.
 
 ## Inbox task files
 
 One file per task, one task per file: `inbox/<short-name>.md`.
 
 ```markdown
-<!-- selam-deck protocol: 1 -->
+<!-- lanedeck protocol: 1 -->
 # Add password reset
 **agent:** a1b2c3d4e5f60718
 
@@ -70,7 +70,7 @@ A question without an answer line is *open*: it appears under "Questions" as wai
 Stages are whatever the project tracks: features, fixes, releases, milestones.
 
 ````markdown
-<!-- selam-deck protocol: 1 -->
+<!-- lanedeck protocol: 1 -->
 # Work map
 
 ```flow
@@ -126,7 +126,7 @@ what the project is, then stack, default branch, and how to run and test it.
 Terms used only in this project. `## Group` headings and one line per term:
 
 ```markdown
-<!-- selam-deck protocol: 1 -->
+<!-- lanedeck protocol: 1 -->
 ## Billing
 - **invoice run** — the nightly job that issues invoices
 - **grace period** — days a failed payment keeps access

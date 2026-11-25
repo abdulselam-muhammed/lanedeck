@@ -1,21 +1,23 @@
-// The project folder protocol (docs/PROTOCOL.md, version 1): `<repo>/.selam-deck/` holds project.md, map.md, glossary.md and inbox/.
+// The project folder protocol (docs/PROTOCOL.md, version 1): `<repo>/.lanedeck/` holds project.md, map.md, glossary.md and inbox/.
 // This module only READS it, and every problem it finds is a soft warning, never an error. The few things the dashboard writes into a
 // project (PROTOCOL.md, inbox/00-setup.md, a .gitignore line, the AGENTS.md/CLAUDE.md block, and the archiving of the finished setup file)
 // are all in server/setup.mjs.
-// The folder is untrusted (a cloned repo): a symlinked or junctioned `.selam-deck/`, inbox/ or file is never read, only warned about.
+// The folder is untrusted (a cloned repo): a symlinked or junctioned `.lanedeck/`, inbox/ or file is never read, only warned about.
 import { existsSync, lstatSync } from "node:fs";
 import { join } from "node:path";
 import { readPlainAsync } from "./safepath.mjs";
 
 export const PROTOCOL_VERSION = 1;
-export const PROTOCOL_DIR = ".selam-deck";
+export const PROTOCOL_DIR = ".lanedeck";
 const STATES = ["done", "now", "you", "wait", "next", "later", "deferred", "blocked"];
-const MARKER = /^\s*<!--\s*selam-deck protocol:\s*(\d+)\s*-->\s*\r?\n?/;
+const MARKER = /^\s*<!--\s*lanedeck protocol:\s*(\d+)\s*-->\s*\r?\n?/;
 export const QUESTION_ID = /^##\s+([A-Z]{1,8}\d{1,3})\b/;
 const ANSWER_LINE = /^\s*\*\*(?:Answer|\u0627\u0644\u062c\u0648\u0627\u0628)\s*:\*\*\s*\S/i;
 
 /** The folder of a project that follows the protocol, or null. */
-export const protocolDir = (repoPath) => (repoPath && existsSync(join(repoPath, PROTOCOL_DIR)) ? join(repoPath, PROTOCOL_DIR) : null);
+/** Legacy: a project that still has the pre-rename ".selam-deck" folder and no ".lanedeck" keeps using it. */
+export const protocolDirName = (repoPath) => (repoPath && !existsSync(join(repoPath, PROTOCOL_DIR)) && existsSync(join(repoPath, ".selam-deck")) ? ".selam-deck" : PROTOCOL_DIR);
+export const protocolDir = (repoPath) => (repoPath && existsSync(join(repoPath, protocolDirName(repoPath))) ? join(repoPath, protocolDirName(repoPath)) : null);
 
 /** Text without the marker line, and the version the marker names (1 when missing). */
 export function stripMarker(text) {
@@ -62,7 +64,7 @@ async function read(path, name, warn) {
 }
 
 /**
- * Everything the dashboard reads from `.selam-deck/`, plus the soft warnings.
+ * Everything the dashboard reads from `.lanedeck/`, plus the soft warnings.
  * `files`: the inbox files [{ name, text }], for the question checks. `skipped`: inbox entries that were not read (symlinks).
  */
 export async function readProtocol(dir, files, skipped = []) {
@@ -70,7 +72,7 @@ export async function readProtocol(dir, files, skipped = []) {
   const warn = (w) => { if (!warnings.includes(w)) warnings.push(w); };
   for (const name of skipped) warn(`inbox/${name} is a symlink or junction: not read`);
   if (isLink(dir)) {
-    warn(".selam-deck is a symlink or junction: not read");
+    warn(".lanedeck is a symlink or junction: not read");
     return { version: PROTOCOL_VERSION, project: null, map: null, glossary: [], warnings: warnings.slice(0, 20) };
   }
   if (isLink(join(dir, "inbox"))) warn("inbox is a symlink or junction: not read");
