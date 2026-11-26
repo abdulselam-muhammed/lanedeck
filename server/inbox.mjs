@@ -587,7 +587,7 @@ function createInbox(P) {
     if (d === PDIR && inbox === INBOX && watchers.length) return;
     PDIR = d; INBOX = inbox;
     for (const w of watchers.splice(0)) try { w.close(); } catch {}
-    try { watchers.push(watch(INBOX, { persistent: true }, () => broadcast())); } catch (error) { console.error("cannot watch", INBOX, error.message); }
+    try { watchers.push(watch(INBOX, { persistent: true }, () => broadcast())); } catch (error) { if (error?.code !== "ENOENT") console.error("cannot watch", INBOX, error.message); } // a folder that does not exist yet (new config) is not an error: the page already says so
     if (PDIR) try { watchers.push(watch(PDIR, { persistent: true }, () => broadcast())); } catch (error) { console.error("cannot watch", PDIR, error.message); }
   }
   const PROJECT = P.claudeProjectDir;

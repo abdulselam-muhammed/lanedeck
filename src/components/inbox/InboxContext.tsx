@@ -26,6 +26,7 @@ import {
   Tree,
 } from "@/lib/inbox/model";
 import { openLive } from "@/lib/inbox/live";
+import { notifyEvent } from "@/lib/notify/useNotify";
 import { useConfig, useMark, useProject, useT } from "@/context/ConfigContext";
 
 /** The runners summary of the `ci.runners` event (server/ci/org.mjs aggregates, the fields the Overview shows). */
@@ -369,6 +370,7 @@ function InboxProvider({ children, projectId }: { children: React.ReactNode; pro
       branch: (d) => setBranchData(d as BranchData),
       protocol: (d) => setProtocol((d as Protocol | null) ?? null),
       config: () => router.refresh(), // the settings page saved: the root layout re-reads the public config
+      notify: notifyEvent, // new GitHub notifications: the Inbox's GitHub rows are read again (lib/notify/useNotify.ts)
     }, `/api/p/${projectId}/events`);
   }, [ready, applyState, router, projectId]);
 

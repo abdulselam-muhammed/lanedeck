@@ -5,7 +5,7 @@
 //  * a tab coming back to the foreground re-checks at once;
 //  * the server sends `ping` every 20 s; 60 s of silence (a half-open connection) closes and re-opens it;
 //  * every (re)connect starts with a full `snapshot` from the server, so nothing missed while away is lost.
-export type LiveHandlers = Partial<Record<"snapshot" | "inbox" | "agents" | "ci.runners" | "branch" | "protocol" | "config", (data: unknown) => void>> & {
+export type LiveHandlers = Partial<Record<"snapshot" | "inbox" | "agents" | "ci.runners" | "branch" | "protocol" | "config" | "notify", (data: unknown) => void>> & {
   onStatus?: (connected: boolean) => void;
 };
 export function openLive(h: LiveHandlers, url = "/api/events"): () => void {
@@ -27,7 +27,7 @@ export function openLive(h: LiveHandlers, url = "/api/events"): () => void {
     last = Date.now();
     const s = new EventSource(url);
     es = s;
-    for (const type of ["snapshot", "inbox", "agents", "ci.runners", "branch", "protocol", "config"] as const) {
+    for (const type of ["snapshot", "inbox", "agents", "ci.runners", "branch", "protocol", "config", "notify"] as const) {
       s.addEventListener(type, (e) => {
         last = Date.now();
         try {

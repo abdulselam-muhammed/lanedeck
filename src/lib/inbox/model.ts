@@ -295,7 +295,7 @@ export const objOf = (v: unknown): Record<string, any> => // eslint-disable-line
 // A node's key is its file name ("x.md") or "agent:<id>"; "__questions" and "__branch" are the two fixed views.
 /** The page of a node or fixed view, under the project's base ("/p/<id>"). The branch page is `/branch`. */
 export const hrefOf = (key: string, base: string) =>
-  base + (key === "__questions" ? "/questions" : key === "__branch" ? "/branch" : key === "__mine" ? "/mine?tab=needs" : "/inbox/" + encodeURIComponent(key));
+  key === "__github_all" ? "/notifications?tab=github" : base + (key === "__questions" ? "/questions" : key === "__branch" ? "/branch" : key === "__mine" ? "/mine?tab=needs" : key === "__github" ? "/inbox?tab=github" : "/inbox/" + encodeURIComponent(key));
 const dec = (s: string) => {
   try {
     return decodeURIComponent(s);

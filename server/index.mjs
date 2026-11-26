@@ -22,6 +22,7 @@
 //   WS  /api/ci/ws         the panel's one live channel (server/ci/live.mjs); every other upgrade is Next's own
 //   GET /api/load          machine load: CPU/RAM/disk, grouped processes, WSL docker, ETA (server/load/load.mjs): read-only
 //   GET /api/prs/*, WS /api/prs/ws   the PR control board (server/prs/board.mjs): read-only
+//   GET /api/p/:p/notify   the Inbox's GitHub tab (server/notify/notify.mjs): read-only on GitHub; POST .../notify/read keeps the local read state
 //   GET /api/p/:p/mine     "Your work": your issues, your PRs (from the board), what is asked of you (server/mine/mine.mjs): read-only
 import { createServer } from "node:http";
 import { dirname, join } from "node:path";
@@ -76,6 +77,10 @@ const { createPrs } = await import("./prs/board.mjs");
 const prs = createPrs({ root: DATA_ROOT, firstId: FIRST, projectOf: projectById });
 const { createMine } = await import("./mine/mine.mjs");
 const mine = createMine({ boardOf: prs.boardOf, projectOf: projectById });
+// The Inbox's GitHub tab: one poller for every linked repo. New unread rows go to every open page as a `notify` event (not
+// sticky: a page that connects later reads the list itself, so an old toast is never replayed).
+const { createNotify } = await import("./notify/notify.mjs");
+const notify = createNotify({ root: DATA_ROOT, onFresh: (fresh) => inbox.sendEvent("notify", { at: Date.now(), fresh }) });
 const { usage: githubUsage } = await import("./budget.mjs");
 const { createLoad } = await import("./load/load.mjs");
 const { features: platformFeatures } = await import("./platform.mjs");
@@ -117,6 +122,7 @@ const server = createServer(async (req, res) => {
     if (url.pathname.startsWith("/api/ci/") && (await ci(req, res, url))) return;
     if (url.pathname.startsWith("/api/prs/") && (await prs.handle(req, res, url, pid))) return;
     if (url.pathname === "/api/mine" && (await mine.handle(req, res, url, pid))) return;
+    if (url.pathname.startsWith("/api/notify") && (await notify.handle(req, res, url, pid))) return;
     if (req.method === "GET" && url.pathname === "/api/agents") return json(res, await inbox.allAgents());
     if (req.method === "GET" && url.pathname === "/api/skills") return json(res, { skills: await listSkills() });
     if (req.method === "GET" && url.pathname === "/api/machine") return json(res, { projects: inbox.summaries(), github: githubUsage(), now: Date.now() });

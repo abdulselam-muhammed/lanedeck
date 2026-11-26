@@ -18,6 +18,7 @@ export type Settings = {
     thresholds: Thresholds; remoteThresholds: Thresholds; machines: MachineCfg[];
   };
   github: { org: string | null; rateBudgetPerHour: number };
+  notifications: { github: { enabled: boolean; sections: string[]; pollSeconds: number }; browser: boolean };
   projects: ProjectCfg[];
   ui: { lang: "ar" | "en"; dir: "rtl" | "ltr"; title: string; brand: string | null; runnerPrefix: string | null };
   [k: string]: unknown;

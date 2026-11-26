@@ -1,5 +1,5 @@
 "use client";
-// /settings: edit the deck's config. Five tabs; each saves only its own slice (over the last saved copy) with PUT /api/settings.
+// /settings: edit the deck's config. Six tabs; each saves only its own slice (over the last saved copy) with PUT /api/settings.
 // The server validates with the same validator it starts with and answers 400 with the key and the message; those show inline.
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -7,7 +7,8 @@ import { Card, CardHead, PageHeader } from "@/components/inbox/bits";
 import { Icon } from "@/components/inbox/IconSprite";
 import { useInbox } from "@/components/inbox/InboxContext";
 import { useLoad } from "@/components/load/LoadContext";
-import { useConfig } from "@/context/ConfigContext";
+import { useConfig, useT } from "@/context/ConfigContext";
+import { GH_SECTIONS } from "@/lib/notify/useNotify";
 import { useTheme } from "@/context/ThemeContext";
 import { Modal } from "@/components/ui/modal";
 import { SetupDialog } from "@/components/setup/Setup";
@@ -16,7 +17,7 @@ import {
   api, ApiError, tr, type Detected, type Devices, type MachineCfg, type Probe, type ProjectCfg, type Reviewer, type Settings, type TextKey,
 } from "@/lib/settings";
 
-const TABS = ["general", "devices", "projects", "monitoring", "advanced"] as const;
+const TABS = ["general", "devices", "projects", "monitoring", "notifications", "advanced"] as const;
 type Tab = (typeof TABS)[number];
 
 const inputCls =
@@ -265,8 +266,77 @@ export default function SettingsPage() {
         );
       })()}
 
+      {tab === "notifications" && (
+        <NotificationsTab t={t} value={draft.notifications} set={(f) => set((d) => { f(d.notifications); })} errKey={err?.tab === "notifications" ? err.key : undefined} errMsg={err?.tab === "notifications" ? err.message : null}
+          foot={<Foot tb="notifications" changed={dirty(draft.notifications, saved.notifications) && !outOfRange(draft.notifications.github.pollSeconds, 30, 3600)}
+            onReset={() => set((d) => { d.notifications = clone(saved.notifications); })}
+            onSave={() => save("notifications", (base, d) => { base.notifications = d.notifications; return base; })} />} />
+      )}
+
       {tab === "advanced" && <AdvancedTab t={t} saved={saved} path={meta.path} busy={busy} err={err?.tab === "advanced" ? err.message : null} onSave={(obj) => save("advanced", () => obj)} />}
     </div>
+  );
+}
+
+/** Settings -> Notifications: the Inbox's GitHub tab (on/off, sections, poll interval) and the optional browser notifications. */
+function NotificationsTab({ t, value, set, errKey, errMsg, foot }: {
+  t: (k: TextKey, vars?: Record<string, string | number>) => string;
+  value: Settings["notifications"]; set: (f: (n: Settings["notifications"]) => void) => void; errKey?: string; errMsg: string | null; foot: React.ReactNode;
+}) {
+  const tt = useT(); // the section names live with the Inbox's strings
+  const g = value.github;
+  const [perm, setPerm] = useState<string>("default");
+  useEffect(() => { setPerm("Notification" in window ? Notification.permission : "none"); }, []);
+  const toggleBrowser = async (on: boolean) => {
+    if (on && "Notification" in window && Notification.permission === "default") {
+      try { setPerm(await Notification.requestPermission()); } catch { /* old browser */ }
+    }
+    set((n) => { n.browser = on; });
+  };
+  const keyErr = (k: string) => (errKey === k ? errMsg : null);
+  const OnOff = ({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) => (
+    <span role="radiogroup" aria-label={label} className="inline-flex gap-1 rounded-lg bg-strip p-1">
+      {[true, false].map((v) => (
+        <button key={String(v)} type="button" role="radio" aria-checked={on === v} onClick={() => onChange(v)}
+          className={`rounded-md px-3 py-1 text-theme-xs font-medium ${on === v ? "seg-on text-gray-900 dark:text-white" : "text-gray-500 hover:text-gray-800 dark:text-gray-400"}`}>
+          {t(v ? "ntf.on" : "ntf.off")}
+        </button>
+      ))}
+    </span>
+  );
+  return (
+    <Card>
+      <CardHead title={t("ntf.github")} desc={t("ntf.githubHelp")} />
+      <div className="grid gap-4 px-3 pb-3">
+        <Field label={t("ntf.enabled")} hint={t("ntf.enabledHelp")} err={keyErr("notifications.github.enabled")}>
+          <span><OnOff on={g.enabled} label={t("ntf.enabled")} onChange={(v) => set((n) => { n.github.enabled = v; })} /></span>
+        </Field>
+        <fieldset className="grid gap-1.5" disabled={!g.enabled}>
+          <legend className="mb-1 text-theme-xs font-medium text-gray-500 dark:text-gray-400">{t("ntf.sections")}</legend>
+          <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+            {GH_SECTIONS.map((s) => (
+              <label key={s} className={`flex items-center gap-2 rounded-lg border border-line px-2.5 py-1.5 text-theme-sm ${g.enabled ? "" : "opacity-50"}`}>
+                <input type="checkbox" className="h-4 w-4 rounded border-line text-brand-500 focus:ring-brand-500/30" checked={g.sections.includes(s)}
+                  onChange={(e) => set((n) => { n.github.sections = GH_SECTIONS.filter((x) => (x === s ? e.target.checked : n.github.sections.includes(x))); })} />
+                <span className="text-gray-800 dark:text-gray-100">{tt(`ntf.sec.${s}`)}</span>
+              </label>
+            ))}
+          </div>
+          <span className="text-theme-xs text-muted">{t("ntf.sectionsHelp")}</span>
+          {keyErr("notifications.github.sections") && <span className="text-theme-xs text-error-600 dark:text-error-400">{keyErr("notifications.github.sections")}</span>}
+        </fieldset>
+        <div className="sm:max-w-xs">
+          <Field label={t("ntf.poll")} hint={t("ntf.pollHelp")}
+            err={keyErr("notifications.github.pollSeconds") ?? (outOfRange(g.pollSeconds, 30, 3600) ? t("val.range", { min: 30, max: 3600 }) : null)}>
+            <Num value={g.pollSeconds} min={30} max={3600} step={10} unit={t("ntf.unitSec")} onChange={(v) => set((n) => { n.github.pollSeconds = v; })} />
+          </Field>
+        </div>
+        <Field label={t("ntf.browser")} hint={t("ntf.browserHelp")} err={keyErr("notifications.browser") ?? (value.browser && perm === "denied" ? t("ntf.browserDenied") : null)}>
+          <span><OnOff on={value.browser} label={t("ntf.browser")} onChange={toggleBrowser} /></span>
+        </Field>
+      </div>
+      {foot}
+    </Card>
   );
 }
 

@@ -13,6 +13,7 @@ import { useSidebar } from "../context/SidebarContext";
 import { useInbox } from "@/components/inbox/InboxContext";
 import { CountBadge } from "@/components/inbox/bits";
 import { Icon } from "@/components/inbox/IconSprite";
+import { useNotify } from "@/lib/notify/useNotify";
 import MineNotifier from "@/components/mine/MineNotifier";
 import { useMine } from "@/lib/mine/useMine";
 
@@ -136,6 +137,10 @@ const AppSidebar: React.FC = () => {
   const { counts, unreadCount, branchData } = useInbox();
   const project = useCurrentProject();
   const { data: agentsAll } = useAllAgents(15000);
+  // The Inbox badges: the project's unread agent files + its unread GitHub notifications; the all-projects icon: every unread GitHub row.
+  const ghProject = useNotify(project.id).data?.counts.unread ?? 0;
+  const ghAll = useNotify("all").data?.counts.unread ?? 0;
+  const inboxUnread = unreadCount + ghProject;
   const machineRunning = agentsAll ? agentsAll.agents.filter((a) => a.state === "run").length : 0;
   const pathname = usePathname() || "/";
   const branch = useBranch();
@@ -151,7 +156,7 @@ const AppSidebar: React.FC = () => {
   const projectItems: NavItem[] = [
     { href: P, icon: "home", label: t("layout.nav.overview"), match: here("") },
     { href: `${P}/questions`, icon: "help", label: t("layout.nav.questions"), match: here("/questions"), pill: counts.questions ? <CountBadge>{counts.questions}</CountBadge> : null },
-    { href: `${P}/inbox`, icon: "inbox", label: t("layout.nav.inbox"), match: here("/inbox"), pill: unreadCount ? <CountBadge>{unreadCount}</CountBadge> : null },
+    { href: `${P}/inbox`, icon: "inbox", label: t("layout.nav.inbox"), match: here("/inbox"), pill: inboxUnread ? <CountBadge>{inboxUnread}</CountBadge> : null },
     { href: `${P}/mine`, icon: "circle-check", label: t("mine.nav"), match: here("/mine"), pill: needsYou ? <CountBadge>{needsYou}</CountBadge> : null },
     { href: `${P}/prs`, icon: "list-checks", label: t("layout.nav.prs"), match: here("/prs") },
     { href: `${P}/flow`, icon: "map", label: t("nav.flow"), match: here("/flow") },
@@ -160,6 +165,7 @@ const AppSidebar: React.FC = () => {
   ];
   const machineItems: NavItem[] = [
     { href: "/", icon: "layout-grid", label: t("layout.nav.machine"), match: (p) => p === "/" },
+    { href: "/notifications", icon: "inbox", label: t("ntf.all.nav"), match: (p) => p.startsWith("/notifications"), pill: ghAll ? <CountBadge>{ghAll}</CountBadge> : null },
     { href: "/devices", icon: "monitor", label: t("layout.nav.devices"), match: (p) => p.startsWith("/devices") },
     { href: "/ci", icon: "terminal", label: "Runners", match: (p) => p.startsWith("/ci") },
     { href: "/load", icon: "gauge", label: t("layout.nav.load"), match: (p) => p.startsWith("/load") },

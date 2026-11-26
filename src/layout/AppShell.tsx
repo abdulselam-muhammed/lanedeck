@@ -11,6 +11,7 @@ import Toasts from "@/components/inbox/Toasts";
 import LoadBanner from "@/components/load/LoadBanner";
 import { LoadProvider } from "@/components/load/LoadContext";
 import NotifyHelpModal from "@/components/inbox/NotifyHelpModal";
+import NotifyNotifier from "@/components/notify/NotifyNotifier";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const { isExpanded } = useSidebar();
@@ -27,6 +28,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <StatusBar />
         <Toasts />
         <NotifyHelpModal />
+        <NotifyNotifier />
         <LoadBanner />
       </div>
     </LoadProvider>

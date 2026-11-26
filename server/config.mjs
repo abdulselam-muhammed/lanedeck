@@ -11,6 +11,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { isWin } from "./platform.mjs";
 import { protocolDirName } from "./protocol.mjs";
+import { SECTIONS as NOTIFY_SECTIONS } from "./notify/logic.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.join(HERE, "..");
@@ -32,6 +33,9 @@ const DEFAULTS = {
     machines: [], // [{ id, label, sshAlias }]; server/ci/machines.json ([{id,label,ssh}]) is still read too
   },
   github: { org: null, rateBudgetPerHour: 600 },
+  // The Inbox's GitHub tab (server/notify/): your GitHub notifications for the linked repos. pollSeconds is a floor; GitHub's
+  // X-Poll-Interval wins when it asks for more. browser: also show a desktop notification for new items (off by default).
+  notifications: { github: { enabled: true, sections: [...NOTIFY_SECTIONS], pollSeconds: 60 }, browser: false },
   projects: [],
   ui: { lang: "en", dir: null, title: "lanedeck", brand: null, runnerPrefix: null }, // runnerPrefix: stripped from runner names in the queue pills
 };
@@ -127,6 +131,13 @@ function validate(c) {
   });
   need(strOrNull(c.github.org) && (c.github.org == null || /^[\w.-]+$/.test(c.github.org)), "github.org", "must be an organisation login or null");
   need(num(c.github.rateBudgetPerHour) && c.github.rateBudgetPerHour > 0, "github.rateBudgetPerHour", "must be a positive number");
+  const nt = c.notifications;
+  need(isObj(nt) && isObj(nt.github), "notifications", "must be { github: { enabled, sections, pollSeconds }, browser }");
+  need(typeof nt.github.enabled === "boolean", "notifications.github.enabled", "must be true or false");
+  need(Array.isArray(nt.github.sections) && nt.github.sections.every((x) => NOTIFY_SECTIONS.includes(x)) && new Set(nt.github.sections).size === nt.github.sections.length,
+    "notifications.github.sections", `must be a list of distinct sections: ${NOTIFY_SECTIONS.join(", ")}`);
+  need(Number.isInteger(nt.github.pollSeconds) && nt.github.pollSeconds >= 30 && nt.github.pollSeconds <= 3600, "notifications.github.pollSeconds", "must be a whole number of seconds, 30-3600");
+  need(typeof nt.browser === "boolean", "notifications.browser", "must be true or false");
   need(Array.isArray(c.projects), "projects", "must be an array");
   need(new Set(c.projects.map((p) => p.id)).size === c.projects.length, "projects", "ids must be unique");
   c.projects.forEach((p, i) => {

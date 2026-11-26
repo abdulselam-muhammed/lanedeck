@@ -19,7 +19,8 @@ A local control room for working with AI coding agents: CI runners, machine load
 **Project level** (one section per project you add)
 
 - **Overview**: what the project is, active agents, inbox activity, open questions, the PR and branch state.
-- **Questions and Inbox**: the tasks your AI writes (`.lanedeck/inbox/`), their steps and the questions waiting for your answer.
+- **Questions**: the tasks your AI writes (`.lanedeck/inbox/`), their steps and the questions waiting for your answer.
+- **Inbox**: one mail-like list for everything that needs your eyes: your AI agents' files and your GitHub notifications (see [Inbox](#inbox)).
 - **Your work**: your open issues (with a marker when someone replied after you), your PRs grouped by what they wait for, and the reviews and mentions asked of you; the sidebar badge counts what needs you.
 - **Merge board**: every open PR, live: where it stands, who it waits for, what failed, what merged, and conflicts down to the hunk.
 - **Work map**: what is done, in progress, waiting and next, drawn from `.lanedeck/map.md`.
@@ -27,6 +28,28 @@ A local control room for working with AI coding agents: CI runners, machine load
 - **Project glossary**: the terms of the project, next to a built-in general glossary (English or Arabic).
 
 More views are in [Screenshots](#screenshots).
+
+## Inbox
+
+New in 0.2.0: the Inbox is one list, like a mail inbox, for two kinds of items.
+
+- **AI agents**: the files your agents write in `.lanedeck/inbox/`.
+- **GitHub notifications**: mentions, replies, review requests, reviews on your PRs, assignments and state changes for the repos linked to your projects.
+
+Items are grouped by day (Today, Yesterday, Earlier this week, Older). Tabs (All, AI agents, GitHub) and filter chips (Unread, Mentions, Replies, Reviews, Assigned, Status) narrow the list. There is an "all projects" Inbox next to each project's own.
+
+- **Read state is local.** Marking an item read only changes lanedeck; nothing changes on GitHub.
+- **Missing scope.** Reading notifications needs the `notifications` scope on your `gh` login. If it is missing, the page says so and shows the fix: `gh auth refresh -h github.com -s notifications`.
+- **Browser notifications** are optional and off by default; the browser asks for permission once.
+- **Settings.** Settings, then Notifications: switch GitHub notifications on or off, choose the sections, set the poll interval (30-3600 s) and the browser notifications. The same keys live under `notifications` in the config file.
+
+![lanedeck Inbox](https://raw.githubusercontent.com/abdulselam-muhammed/lanedeck/main/docs/screenshots/inbox.png)
+
+## What's new in 0.2.0
+
+- The unified Inbox (AI agents and GitHub notifications in one list, see above).
+- A new Inbox screenshot and `gh auth refresh` guidance for a missing `notifications` scope.
+- A project folder that does not exist yet no longer logs a watcher error on startup.
 
 ## Install
 

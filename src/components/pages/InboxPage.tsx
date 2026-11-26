@@ -1,18 +1,21 @@
 "use client";
-// /inbox and /inbox/[file]: three columns in one card — the list (right), the document (middle), the
+// /inbox and /inbox/[file]: the source tabs on top (All / AI agents / GitHub, components/notify/UnifiedInbox.tsx); the AI agents
+// tab is the agents' inbox as it always was: three columns in one card — the list (right), the document (middle), the
 // agent column (left). Each column scrolls on its own on wide screens. Under 1536px the agent column
 // moves under the document; under 1280px the list and the document are separate screens (phone).
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { hrefOf } from "@/lib/inbox/model";
+import { useRouter, useSearchParams } from "next/navigation";
+import { hrefOf, isReadme, titleOf, whenOf } from "@/lib/inbox/model";
 import { useInbox } from "@/components/inbox/InboxContext";
 import { Icon } from "@/components/inbox/IconSprite";
-import { Empty } from "@/components/inbox/bits";
+import { Empty, Led } from "@/components/inbox/bits";
 import InboxList from "@/components/inbox/InboxList";
 import NodeView from "@/components/inbox/NodeView";
 import AgentSide from "@/components/inbox/LivePanel";
 import { useProject, useT } from "@/context/ConfigContext";
+import { useNotify } from "@/lib/notify/useNotify";
+import { AgentRow, AllList, GhChecked, GithubTab, InboxTab, InboxTabs, MarkAllButton, tabOf } from "@/components/notify/UnifiedInbox";
 
 export function useMedia(q: string) {
   const [m, setM] = useState(false);
@@ -27,6 +30,47 @@ export function useMedia(q: string) {
 }
 
 export default function InboxPage() {
+  const { tree, selected, updatedAt, unreadOf, unreadCount, markAllRead, toast, pstore } = useInbox();
+  const { id, base } = useProject();
+  const t = useT();
+  const router = useRouter();
+  const params = useSearchParams();
+  const gh = useNotify(id);
+  const [saved, setSaved] = useState<InboxTab | null>(null);
+  useEffect(() => setSaved(tabOf(pstore.get<string>("inbox.tab", "all")) ?? "all"), [pstore]);
+  // A file or agent on screen is the AI agents tab; otherwise ?tab=, else the tab you used last.
+  const onFile = !!selected && !selected.startsWith("__");
+  const tab: InboxTab = onFile ? "agents" : (tabOf(params.get("tab")) ?? saved ?? "all");
+  const go = (v: InboxTab) => {
+    pstore.set("inbox.tab", v);
+    setSaved(v);
+    router.replace(`${base}/inbox${v === "agents" ? "" : `?tab=${v}`}`, { scroll: false });
+  };
+  const ghUnread = gh.data?.counts.unread ?? 0;
+  const agentRows: AgentRow[] = [...tree.nodes.values()]
+    .filter((n) => n.file && !isReadme(n.file))
+    .map((n) => ({ key: n.key, href: hrefOf(n.key, base), title: titleOf(n), sub: n.file!.statusText || n.file!.name, at: whenOf(n), unread: unreadOf(n.file!), lead: <Led n={n} /> }));
+  const markGh = async () => {
+    const n = await gh.markAllRead();
+    toast(n ? t("ntf.markedN", { n }) : t("ntf.nothingUnread"), t("ntf.localOnly"), "");
+  };
+  const mark = tab === "github" ? markGh : tab === "agents" ? markAllRead : async () => { if (ghUnread) await gh.markAllRead(); markAllRead(); };
+  const unreadHere = tab === "github" ? ghUnread : tab === "agents" ? unreadCount : unreadCount + ghUnread;
+  return (
+    <>
+      <InboxTabs tab={tab} onTab={go} counts={{ agents: unreadCount, github: ghUnread }}>
+        {tab !== "agents" && <GhChecked data={gh.data} onRefresh={gh.refresh} />}
+        <MarkAllButton n={unreadHere} onClick={mark} />
+      </InboxTabs>
+      {tab === "agents" && <AgentsInbox />}
+      {tab === "all" && (updatedAt ? <AllList agents={agentRows} gh={gh.data} failed={gh.failed} onRead={gh.markRead} onUnread={gh.markUnread} /> : <Empty icon="loader">{t("inbox.connecting")}</Empty>)}
+      {tab === "github" && <GithubTab data={gh.data} failed={gh.failed} onRead={gh.markRead} onUnread={gh.markUnread} />}
+    </>
+  );
+}
+
+/** The AI agents tab: the agents' inbox, unchanged. */
+function AgentsInbox() {
   const { tree, selected, updatedAt, modes, pstore } = useInbox();
   const { base } = useProject();
   const t = useT();
@@ -58,7 +102,7 @@ export default function InboxPage() {
  )}
  <div
  className={`panel-smoke grid overflow-hidden rounded-xl border border-line/70 bg-card shadow-theme-xs ${cols} ${
-          wide ? "h-[calc(100dvh-80px)] min-h-[520px]" : ""
+          wide ? "h-[calc(100dvh-128px)] min-h-[520px]" : ""
         }`}
  >
  {showList && (
