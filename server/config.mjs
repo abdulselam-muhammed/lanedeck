@@ -32,7 +32,7 @@ const DEFAULTS = {
     remoteThresholds: { ram: 90, cpu: 85, disk: 95 },
     machines: [], // [{ id, label, sshAlias }]; server/ci/machines.json ([{id,label,ssh}]) is still read too
   },
-  github: { org: null, rateBudgetPerHour: 600 },
+  github: { org: null, rateBudgetPerHour: 1500 },
   // The Inbox's GitHub tab (server/notify/): your GitHub notifications for the linked repos. pollSeconds is a floor; GitHub's
   // X-Poll-Interval wins when it asks for more. browser: also show a desktop notification for new items (off by default).
   notifications: { github: { enabled: true, sections: [...NOTIFY_SECTIONS], pollSeconds: 60 }, browser: false },

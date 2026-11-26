@@ -10,6 +10,7 @@ lanedeck is one Node process: a small custom HTTP server that also hosts a Next.
 - `server/ci/`: the runners panel (docker and GitHub Actions, read-only).
 - `server/prs/board.mjs`: the merge board.
 - `server/budget.mjs`: the GitHub request budget shared by all pollers.
+- `server/notify/`: the Inbox's GitHub notifications: one conditional poller that sleeps while no page is open, pushed to the pages over SSE (`push.mjs`).
 - `server/platform.mjs`: every OS difference in one place.
 - `server/i18n/`: the English and Arabic dictionaries, split by area. `npm run check:i18n` keeps them in step.
 - `src/`: the Next.js interface (App Router, client components, TailAdmin-based UI).

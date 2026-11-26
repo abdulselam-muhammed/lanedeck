@@ -20,6 +20,7 @@ import { ts } from "./i18n/server.mjs";
 import { protocolDirName, protocolDir, readProtocol, questionsOf } from "./protocol.mjs";
 import { archiveSetup } from "./setup.mjs";
 import { readPlainAsync, realRoot, unsafeReason } from "./safepath.mjs";
+import { cachedGet } from "./ghcache.mjs";
 
 /** Agents touched within this window are listed. */
 const WINDOW_MS = 12 * 3600e3;
@@ -574,6 +575,7 @@ const countQuestions = (files) => files.filter((f) => !/^00-README/i.test(f.name
 // project starts with the server; the others start the first time a request names them (getInbox).
 const instances = new Map();
 const globalSticky = new Map(); // topic -> last JSON text (ci.runners ...): the same for every project, replayed to a new inbox
+const clientHooks = new Set(); // (projectId) -> void, run when a page connects, before the sticky topics are replayed to it
 
 function createInbox(P) {
   // Protocol mode: the repo has a .lanedeck/ folder (docs/PROTOCOL.md). Its inbox/ is the inbox unless the config sets inboxDir.
@@ -705,25 +707,13 @@ function createInbox(P) {
   });
   /** A GitHub GET that counts against the shared hourly budget and is ETag-cached: { body } | { denied } | { failed }. A 304 costs nothing. */
   const etags = new Map(); // url -> { etag, body }
-  const ghGet = (url) => new Promise((resolve) => {
-    if (!spend(1, WHO)) return resolve({ denied: true });
-    const prev = etags.get(url);
-    const args = ["api", "-i", url, ...(prev ? ["-H", `If-None-Match: ${prev.etag}`] : [])];
-    run(GH, args).then((out) => {
-      if (out == null) { refund(1, WHO); return resolve({ failed: true }); }
-      const i = out.search(/\r?\n\r?\n/);
-      const head = i < 0 ? out : out.slice(0, i);
-      const status = Number((/^HTTP\/[\d.]+\s+(\d+)/m.exec(head) || [])[1] || 0);
-      if (status === 304 && prev) { refund(1, WHO); return resolve({ body: prev.body }); }
-      if (status !== 200) return resolve({ failed: true });
-      try {
-        const body = JSON.parse(out.slice(i).trim());
-        const etag = (/^etag:\s*(.+?)\s*$/im.exec(head) || [])[1];
-        if (etag) etags.set(url, { etag, body });
-        resolve({ body });
-      } catch { resolve({ failed: true }); }
-    });
+  const runRaw = (bin, args) => new Promise((ok) => {
+    try {
+      const c = execFile(bin, args, { cwd: REPO || undefined, windowsHide: true, maxBuffer: 8 << 20, timeout: 30000 }, (e, out) => ok({ err: e, out }));
+      c.on("error", (e) => ok({ err: e, out: "" }));
+    } catch (e) { ok({ err: e, out: "" }); }
   });
+  const ghGet = (url) => cachedGet({ exec: (args) => runRaw(GH, args), spend: () => spend(1, WHO), refund: () => refund(1, WHO), etags, url });
   /** A plain (uncached) GitHub call, for the paginated per-day list; null when denied or failed. */
   const gh = (args) => (spend(1, WHO) ? run(GH, args) : Promise.resolve(null));
   const commitOf = (c) => ({ sha: c.sha, subject: (c.commit.message || "").split("\n")[0], author: c.commit.author.name, at: c.commit.committer.date, pr: (((c.commit.message || "").split("\n")[0].match(/\(#(\d+)\)\s*$/)) || [])[1] || null });
@@ -819,6 +809,8 @@ function createInbox(P) {
       return branchLast;
     },
     /** GET /api/p/<id>/events: an SSE client: the current snapshot at once, then every change. */
+    /** How many pages hold this project's live channel open. */
+    clientCount: () => clients.size,
     async addSseClient(req, res) {
       res.writeHead(200, {
         "content-type": "text/event-stream; charset=utf-8",
@@ -829,6 +821,8 @@ function createInbox(P) {
       const snap = await quickSnapshot();
       res.write(`retry: 2000\n\n`);
       write(res, "snapshot", JSON.stringify(snap));
+      // Synchronous from here to clients.add: a hook may refresh a sticky topic (replayed below); a timer it sets sees this client counted.
+      for (const fn of clientHooks) try { fn(P.id); } catch (e) { console.error("sse client hook", e.message); }
       for (const [type, t] of sticky) write(res, type, t);
       clients.add(res);
       req.on("close", () => clients.delete(res));
@@ -858,6 +852,12 @@ export function publish(type, data) {
   globalSticky.set(type, JSON.stringify(data));
   for (const i of instances.values()) i.publish(type, data);
 }
+/** A sticky topic whose data depends on the project (the Inbox's GitHub rows): `fn(projectId)` gives each project's data (undefined: nothing to send). */
+export function publishEach(type, fn) { for (const i of instances.values()) { const d = fn(i.id); if (d !== undefined) i.publish(type, d); } }
+/** Pages connected to any project's live channel (the GitHub notifications poller sleeps at 0). */
+export function clientCount() { let n = 0; for (const i of instances.values()) n += i.clientCount(); return n; }
+/** Run `fn(projectId)` whenever a page connects to a live channel. */
+export function onClient(fn) { clientHooks.add(fn); return () => clientHooks.delete(fn); }
 /** An event for every connected client of every project (the settings page tells open tabs the config changed). */
 export function sendEvent(type, data) { for (const i of instances.values()) i.sendEvent(type, data); }
 /** Per-project numbers for the machine overview. Starts every configured project (lazy start). */

@@ -14,7 +14,7 @@
 //   Project routes: /api/p/<project>/{snapshot,branch,events,prs/...}; the old /api/{snapshot,branch,events,prs/...} are aliases of the FIRST project.
 //   GET /api/p/:p/snapshot the project's inbox files + its live agents (cached, rebuilt on every change)
 //   GET /api/p/:p/branch[?pull=1]  our last pull of origin/<defaultBranch> vs the branch on GitHub
-//   GET /api/p/:p/events   SSE, the one live channel of a project page: snapshot, inbox, agents, ci.runners, branch, ping
+//   GET /api/p/:p/events   SSE, the one live channel of a project page: snapshot, inbox, agents, ci.runners, branch, notify.*, ping
 //   GET /api/agents        the agents of EVERY project under ~/.claude/projects (48 h, capped), each tagged with its project or "other"
 //   GET /api/machine       per-project counters for the machine overview + the shared GitHub budget
 //   GET /api/skills        the plugin skills (plugin/skills/*/SKILL.md: name, description, body), read on every call
@@ -22,7 +22,8 @@
 //   WS  /api/ci/ws         the panel's one live channel (server/ci/live.mjs); every other upgrade is Next's own
 //   GET /api/load          machine load: CPU/RAM/disk, grouped processes, WSL docker, ETA (server/load/load.mjs): read-only
 //   GET /api/prs/*, WS /api/prs/ws   the PR control board (server/prs/board.mjs): read-only
-//   GET /api/p/:p/notify   the Inbox's GitHub tab (server/notify/notify.mjs): read-only on GitHub; POST .../notify/read keeps the local read state
+//   GET /api/p/:p/notify   the Inbox's GitHub tab (server/notify/notify.mjs): read-only on GitHub; POST .../notify/read keeps the local read state;
+//                          the rows also ride the SSE channel (notify.data / notify.state), so the pages do not poll this
 //   GET /api/p/:p/mine     "Your work": your issues, your PRs (from the board), what is asked of you (server/mine/mine.mjs): read-only
 import { createServer } from "node:http";
 import { dirname, join } from "node:path";
@@ -77,10 +78,24 @@ const { createPrs } = await import("./prs/board.mjs");
 const prs = createPrs({ root: DATA_ROOT, firstId: FIRST, projectOf: projectById });
 const { createMine } = await import("./mine/mine.mjs");
 const mine = createMine({ boardOf: prs.boardOf, projectOf: projectById });
-// The Inbox's GitHub tab: one poller for every linked repo. New unread rows go to every open page as a `notify` event (not
-// sticky: a page that connects later reads the list itself, so an old toast is never replayed).
+// The Inbox's GitHub tab: one poller for every linked repo, awake only while a page is connected (it sleeps at 0 pages and a
+// connecting page wakes it). Its rows are pushed to the pages as the sticky `notify.data` / `notify.state` events
+// (server/notify/push.mjs), so tabs never poll. New unread rows also go out as a `notify` event (not sticky: an old toast is
+// never replayed).
 const { createNotify } = await import("./notify/notify.mjs");
-const notify = createNotify({ root: DATA_ROOT, onFresh: (fresh) => inbox.sendEvent("notify", { at: Date.now(), fresh }) });
+const { createNotifyPush } = await import("./notify/push.mjs");
+let notifyPush = null;
+const notify = createNotify({
+  root: DATA_ROOT,
+  wanted: () => inbox.clientCount() > 0,
+  onFresh: (fresh) => inbox.sendEvent("notify", { at: Date.now(), fresh }),
+  onChange: () => notifyPush?.push(),
+});
+notifyPush = createNotifyPush({ answer: notify.answer, publishEach: inbox.publishEach });
+inbox.onClient((pid) => {
+  notifyPush.push(pid);
+  setTimeout(() => notify.wake(), 0); // after the page is counted (server/inbox.mjs addSseClient)
+});
 const { usage: githubUsage } = await import("./budget.mjs");
 const { createLoad } = await import("./load/load.mjs");
 const { features: platformFeatures } = await import("./platform.mjs");
@@ -88,7 +103,7 @@ const { createRemote } = await import("./load/remote.mjs");
 const remote = createRemote();
 const load = createLoad({ machines: remote.list });
 const { createSettings } = await import("./settings.mjs");
-const settings = createSettings({ port: PORT, broadcast: inbox.sendEvent, refresh: (id) => inbox.getInbox(id)?.refresh(), reloaded: () => inbox.pruneInstances() });
+const settings = createSettings({ port: PORT, broadcast: inbox.sendEvent, refresh: (id) => inbox.getInbox(id)?.refresh(), reloaded: () => { inbox.pruneInstances(); notifyPush.push(); } });
 const app = next({ dev, dir: ROOT, hostname: HOST, port: PORT });
 const handle = app.getRequestHandler();
 await app.prepare();

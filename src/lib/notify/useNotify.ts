@@ -1,8 +1,9 @@
 "use client";
 // The GitHub side of the Inbox (/api/notify, server/notify/notify.mjs), shared by the tabs, the sidebar badges and the
-// notifier: ONE fetch per scope ("all" or a project id), however many components listen. It is read again when the server
-// says something new arrived (the `notify` SSE event, see InboxContext), when the tab becomes visible, after a mark-read,
-// and every 2 minutes as a fallback. Nothing here talks to GitHub: the server does, read-only.
+// notifier: one store per scope ("all" or a project id), however many components listen. The server PUSHES it over the
+// page's live channel (the sticky `notify.data` / `notify.state` SSE events, server/notify/push.mjs, wired in InboxContext),
+// so nothing here polls: a scope is fetched once only if it has no data yet, and a mark-read answers with the new rows.
+// Nothing here talks to GitHub: the one server poller does, read-only (a manual Refresh asks it, rate-limited there).
 import { useCallback, useSyncExternalStore } from "react";
 
 export type GhSection = "mentions" | "replies" | "review" | "reviews" | "assigned" | "state";
@@ -36,12 +37,12 @@ export type GhAnswer = {
 };
 
 type Snap = { data: GhAnswer | null; failed: boolean };
-type Entry = { snap: Snap; subs: Set<() => void>; timer: ReturnType<typeof setTimeout> | null; busy: boolean };
+type Entry = { snap: Snap; subs: Set<() => void>; busy: boolean };
 const EMPTY: Snap = { data: null, failed: false };
 const entries = new Map<string, Entry>();
 const entryOf = (scope: string) => {
   let e = entries.get(scope);
-  if (!e) entries.set(scope, (e = { snap: { data: null, failed: false }, subs: new Set(), timer: null, busy: false }));
+  if (!e) entries.set(scope, (e = { snap: { data: null, failed: false }, subs: new Set(), busy: false }));
   return e;
 };
 const urlOf = (scope: string, sub = "") => (scope === "all" ? `/api/notify${sub}?scope=all` : `/api/p/${encodeURIComponent(scope)}/notify${sub}`);
@@ -70,8 +71,7 @@ async function post(scope: string, sub: string, body: unknown) {
       const j = (await r.json()) as GhAnswer & { changed?: number };
       e.snap = { data: j, failed: false };
       e.subs.forEach((f) => f());
-      // the other scopes show the same rows: read them again
-      for (const [k] of entries) if (k !== scope) void load(k);
+      // the other scopes show the same rows: the server pushes them (notify.data)
       return j.changed ?? 0;
     }
   } catch {
@@ -80,42 +80,44 @@ async function post(scope: string, sub: string, body: unknown) {
   return 0;
 }
 
-function schedule(scope: string) {
-  const e = entryOf(scope);
-  if (e.timer) clearTimeout(e.timer);
-  e.timer = setTimeout(async () => {
-    if (!document.hidden) await load(scope);
-    if (e.subs.size) schedule(scope);
-  }, !e.snap.data || e.snap.data.state.code === "loading" ? 6000 : 120000);
-}
-
 function subscribe(scope: string, cb: () => void) {
   const e = entryOf(scope);
   e.subs.add(cb);
-  if (e.subs.size === 1) {
-    if (!e.snap.data) load(scope).then(() => schedule(scope));
-    else schedule(scope);
-  }
-  const vis = () => {
-    if (!document.hidden) load(scope);
-  };
-  document.addEventListener("visibilitychange", vis);
+  // The push usually arrives first (it is replayed on connect); the read only fills a scope that has nothing yet.
+  if (e.subs.size === 1 && !e.snap.data) void load(scope);
   return () => {
     e.subs.delete(cb);
-    document.removeEventListener("visibilitychange", vis);
-    if (!e.subs.size && e.timer) {
-      clearTimeout(e.timer);
-      e.timer = null;
-    }
   };
+}
+
+// ---------- the push: the server's rows and state for this page's scopes ----------
+/** `notify.data` { scopes: { <scope>: GhAnswer } }: the rows changed. */
+export function notifyData(d: unknown) {
+  const scopes = (d as { scopes?: Record<string, GhAnswer> } | null)?.scopes;
+  if (!scopes) return;
+  for (const [k, a] of Object.entries(scopes)) {
+    const e = entryOf(k);
+    e.snap = { data: a, failed: false };
+    e.subs.forEach((f) => f());
+  }
+}
+/** `notify.state` { scopes: { <scope>: state } }: a poll ran (when it was checked, the next check); the rows are unchanged. */
+export function notifyState(d: unknown) {
+  const scopes = (d as { scopes?: Record<string, GhAnswer["state"]> } | null)?.scopes;
+  if (!scopes) return;
+  for (const [k, st] of Object.entries(scopes)) {
+    const e = entries.get(k);
+    if (!e?.snap.data) continue;
+    e.snap = { data: { ...e.snap.data, state: st }, failed: false };
+    e.subs.forEach((f) => f());
+  }
 }
 
 // ---------- the live event: the server found new unread rows ----------
 export type GhFresh = { at: number; fresh: GhItem[] };
 const freshSubs = new Set<(d: GhFresh) => void>();
-/** Called by the page's SSE channel (InboxContext) for every `notify` event. */
+/** Called by the page's SSE channel (InboxContext) for every `notify` event (the rows themselves come as notify.data). */
 export function notifyEvent(d: unknown) {
-  for (const k of entries.keys()) void load(k);
   const ev = d as GhFresh;
   if (ev && Array.isArray(ev.fresh)) freshSubs.forEach((f) => f(ev));
 }

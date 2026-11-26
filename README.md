@@ -39,11 +39,18 @@ New in 0.2.0: the Inbox is one list, like a mail inbox, for two kinds of items.
 Items are grouped by day (Today, Yesterday, Earlier this week, Older). Tabs (All, AI agents, GitHub) and filter chips (Unread, Mentions, Replies, Reviews, Assigned, Status) narrow the list. There is an "all projects" Inbox next to each project's own.
 
 - **Read state is local.** Marking an item read only changes lanedeck; nothing changes on GitHub.
+- **Low load.** One server-side poller reads GitHub with conditional requests (a `304 Not Modified` is free) at GitHub's own `X-Poll-Interval`, and only while a lanedeck page is open; open tabs get the result pushed and never poll. `node scripts/sim-notify-load.mjs` shows the cost of one hour.
 - **Missing scope.** Reading notifications needs the `notifications` scope on your `gh` login. If it is missing, the page says so and shows the fix: `gh auth refresh -h github.com -s notifications`.
 - **Browser notifications** are optional and off by default; the browser asks for permission once.
 - **Settings.** Settings, then Notifications: switch GitHub notifications on or off, choose the sections, set the poll interval (30-3600 s) and the browser notifications. The same keys live under `notifications` in the config file.
 
 ![lanedeck Inbox](https://raw.githubusercontent.com/abdulselam-muhammed/lanedeck/main/docs/screenshots/inbox.png)
+
+## What's new in 0.2.1
+
+- The branch page no longer shows "GitHub unreachable" when the data is unchanged (a `304` is now handled as success).
+- GitHub request budget fixes: the default is 1500 requests per hour, the fair share is split only among active callers, Settings, then Monitoring shows usage per caller, and the board polls more slowly when no page is open.
+- Inbox GitHub notifications poll only while a page is open and are pushed to the tabs over the existing event stream (0 GitHub calls with no page open).
 
 ## What's new in 0.2.0
 

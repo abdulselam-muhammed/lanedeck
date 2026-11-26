@@ -12,7 +12,7 @@
     "remoteThresholds": { "ram": 90, "cpu": 85, "disk": 95 },
     "machines": [{ "id": "build-box", "label": "build-box", "sshAlias": "my-ssh-alias" }]
   },
-  "github": { "org": "your-org", "rateBudgetPerHour": 600 },
+  "github": { "org": "your-org", "rateBudgetPerHour": 1500 },
   "projects": [
     {
       "id": "my-project",

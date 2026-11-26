@@ -14,7 +14,7 @@ import { EventEmitter } from 'node:events';
 import { WebSocketServer } from 'ws';
 
 import config from '../config.mjs';
-import { spend } from '../budget.mjs';
+import { spend, usedUpText } from '../budget.mjs';
 import { ts } from '../i18n/server.mjs';
 import { isBot, replyState } from '../mine/logic.mjs';
 
@@ -28,6 +28,8 @@ export function makeBoard(P) {
   const BRANCH = P.defaultBranch;
   const OPEN_MS = 75e3;
   const MERGED_MS = 180e3;
+  const OPEN_IDLE_MS = 300e3; // no page is looking: a read every 5 minutes is enough to keep events and the next first view fresh
+  const MERGED_IDLE_MS = 900e3;
   const MAX_EVENTS = 300;
   const GATE = P.gateCheck;
   // Tasks-board files: a conflict that touches only these is the reviewer's to resolve inside their batch.
@@ -48,7 +50,9 @@ export function makeBoard(P) {
     });
   }
 
+  // The default branch tip and the viewer ride along with every page (a few bytes), so a read is one call per page, not one more for the tip.
   const OPEN_Q = `query($q:String!,$after:String){ rateLimit{cost remaining resetAt}
+   repository(owner:"${REPO_OWNER}",name:"${REPO_NAME}"){ ref(qualifiedName:"refs/heads/${BRANCH}"){ target{ oid ... on Commit{ committedDate messageHeadline } } } } viewer{login}
    search(query:$q,type:ISSUE,first:25,after:$after){ issueCount pageInfo{hasNextPage endCursor}
     nodes{ ... on PullRequest{ number title url isDraft author{login} headRefName baseRefName headRefOid mergeable mergeStateStatus
      reviewDecision createdAt updatedAt additions deletions changedFiles
@@ -57,13 +61,14 @@ export function makeBoard(P) {
       ... on CheckRun{name status conclusion detailsUrl startedAt completedAt}
       ... on StatusContext{context state targetUrl createdAt}}}}}}} }}}}`;
   const MERGED_Q = `query($q:String!){ search(query:$q,type:ISSUE,first:100){ nodes{ ... on PullRequest{ number title url author{login} mergedAt mergedBy{login} mergeCommit{oid} } } } }`;
-  const TIP_Q = `query{ repository(owner:"${REPO_OWNER}",name:"${REPO_NAME}"){ ref(qualifiedName:"refs/heads/${BRANCH}"){ target{ oid ... on Commit{ committedDate messageHeadline } } } } viewer{login} }`;
 
   async function graphql(query, vars) {
-    if (!spend(1, `prs:${P.id}`)) throw new Error('GitHub request budget for this hour is used up (settings: github.rateBudgetPerHour)');
+    const who = `prs:${P.id}`;
     const args = ['api', 'graphql', '-f', `query=${query}`];
     for (const [k, v] of Object.entries(vars || {})) if (v != null) args.push('-F', `${k}=${v}`);
     for (let i = 0; i < 3; i++) {
+      // Every attempt is a real call, so every attempt is counted (a retry loop on a failing network is not free).
+      if (!spend(1, who)) throw new Error(usedUpText());
       const r = await run(GH, args, { timeout: 45000 });
       if (r.code === 0) { try { const j = JSON.parse(r.out); if (j.data) return j.data; } catch { /* retry */ } }
       await new Promise((res) => setTimeout(res, 3000 * (i + 1)));
@@ -207,12 +212,17 @@ export function makeBoard(P) {
       } finally { this.localBusy = false; }
     }
 
+    /** A page just arrived: if the last read is older than the fast pace (the board was idling), read now. */
+    wake() { if (!this.busy && Date.now() - (this.readAt || 0) > OPEN_MS) this.readOpen(); }
+
     holds() { try { return JSON.parse(fs.readFileSync(this.holdsFile, 'utf8')); } catch { return DEFAULT_HOLDS; } }
 
     start() {
       if (!REPO) { this.error = 'no repo configured for this project'; return; }
-      const tick = async () => { await this.readOpen(); setTimeout(tick, OPEN_MS).unref?.(); };
-      const mtick = async () => { await this.readMerged(); setTimeout(mtick, MERGED_MS).unref?.(); };
+      // Fast while someone looks at the board (a page is connected or asked within the last 3 minutes), slow otherwise.
+      const idle = () => !(this.wanted ? this.wanted() : true);
+      const tick = async () => { await this.readOpen(); setTimeout(tick, idle() ? OPEN_IDLE_MS : OPEN_MS).unref?.(); };
+      const mtick = async () => { await this.readMerged(); setTimeout(mtick, idle() ? MERGED_IDLE_MS : MERGED_MS).unref?.(); };
       setTimeout(tick, 500);
       setTimeout(mtick, 3000);
       setInterval(() => { this.refreshLocal().then((ch) => { if (ch) this.rebuild(); }).catch(() => {}); }, 30e3).unref?.();
@@ -302,13 +312,16 @@ export function makeBoard(P) {
       if (this.busy) return;
       this.busy = true;
       try {
-        const v = await graphql(TIP_Q);
-        const tip = { sha: v.repository.ref.target.oid, at: v.repository.ref.target.committedDate, msg: v.repository.ref.target.messageHeadline };
-        this.me = v.viewer.login;
+        let tip = null;
         const rows = [];
         let after = null;
         for (let page = 0; page < 8; page++) {
           const d = await graphql(OPEN_Q, { q: `repo:${REPO} is:pr is:open`, after });
+          if (!tip) {
+            const t = d.repository.ref.target;
+            tip = { sha: t.oid, at: t.committedDate, msg: t.messageHeadline };
+            this.me = d.viewer.login;
+          }
           this.rl = d.rateLimit;
           rows.push(...d.search.nodes.filter((x) => x && x.number));
           if (!d.search.pageInfo.hasNextPage) break;
@@ -492,7 +505,8 @@ export function createPrs({ root, firstId, projectOf }) {
     if (!P) return null;
     const Board = makeBoard(P);
     const board = new Board({ dataRoot: pid === firstId ? path.join(root, 'data') : path.join(root, 'data', 'p', pid) });
-    e = { board, clients: new Map(), boardT: null, lastSent: '' };
+    e = { board, clients: new Map(), boardT: null, lastSent: '', seenAt: 0 };
+    board.wanted = () => e.clients.size > 0 || Date.now() - e.seenAt < 180e3;
     live.set(pid, e);
     board.on('board', () => {
       if (e.boardT || !e.clients.size) return;
@@ -527,6 +541,7 @@ export function createPrs({ root, firstId, projectOf }) {
     boardOf: (pid) => get(pid)?.board.board ?? null,
     async handle(req, res, url, pid = firstId) {
       if (!url.pathname.startsWith('/api/prs/')) return false;
+      { const e = live.get(pid); if (e) { const was = e.seenAt; e.seenAt = Date.now(); if (Date.now() - was > 180e3) e.board.wake(); } }
       // Host, Origin and cross-site requests: refused for every request by server/guard.mjs before this runs.
       if (req.method !== 'GET') return reply(res, 405, { error: 'read-only' }), true;
       const e = get(pid);
@@ -549,6 +564,7 @@ export function createPrs({ root, firstId, projectOf }) {
         const c = { alive: true };
         ws._c = c;
         e.clients.set(ws, c);
+        e.board.wake();
         all.add(ws);
         ws.on('pong', () => { c.alive = true; });
         ws.on('message', (data, bin) => {

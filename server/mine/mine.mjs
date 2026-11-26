@@ -6,11 +6,11 @@
 //   GET /api/mine             { at, me, repo, issues, prs, asked, counts, error } (the first call waits for the first read)
 //   GET /api/mine?refresh=1   the same, after a fresh read (at most one forced read every 20 s)
 import config from "../config.mjs";
-import { spend } from "../budget.mjs";
+import { spend, usedUpText } from "../budget.mjs";
 import { killTree, safeSpawn } from "../platform.mjs";
 import { attention, isBot, needsCount, pendingMention, prGroup, replyState } from "./logic.mjs";
 
-const FRESH_MS = 75e3;
+const FRESH_MS = 150e3;
 const FORCE_MS = 20e3;
 
 const COMMENT = "author{__typename login} createdAt";
@@ -140,7 +140,7 @@ export function createMine({ boardOf, projectOf }) {
     const P = projectOf(pid);
     const s = state.get(pid);
     if (!P?.repo) { s.error = { code: "norepo", text: "no repo configured for this project" }; s.at = Date.now(); return; }
-    if (!spend(1, `mine:${pid}`)) { s.error = { code: "budget", text: "GitHub request budget for this hour is used up" }; return; }
+    if (!spend(1, `mine:${pid}`)) { s.error = { code: "budget", text: usedUpText() }; return; }
     const v = searches(P.repo);
     const args = ["api", "graphql", "-f", `query=${QUERY}`];
     for (const [k, x] of Object.entries(v)) args.push("-f", `${k}=${x}`);

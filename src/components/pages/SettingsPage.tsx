@@ -256,6 +256,7 @@ export default function SettingsPage() {
                     <Num value={draft.github.rateBudgetPerHour} min={RANGES.budget[0]} max={RANGES.budget[1]} unit={t("mon.unitReq")} onChange={(v) => set((d) => { d.github.rateBudgetPerHour = v; })} />
                   </Field>
                 </div>
+                <GithubUsage t={t} />
               </div>
               {bad && <p role="alert" className="text-theme-xs text-error-600 dark:text-error-400">{t("val.fix")}</p>}
             </div>
@@ -703,5 +704,34 @@ function AdvancedTab({ t, saved, path, busy, err, onSave }: {
         </div>
       )}
     </Card>
+  );
+}
+
+type Usage = { used: number; limit: number; denied: number; owners: Record<string, { used: number; denied: number }> };
+
+/** Who spent the GitHub budget in the last hour (from /api/machine), refreshed while the tab is open. */
+function GithubUsage({ t }: { t: ReturnType<typeof useT> }) {
+  const [u, setU] = useState<Usage | null>(null);
+  useEffect(() => {
+    let stop = false;
+    const read = async () => { try { const r = await fetch("/api/machine", { cache: "no-store" }); if (!stop && r.ok) setU((await r.json()).github); } catch { /* retry */ } };
+    void read();
+    const id = setInterval(read, 15000);
+    return () => { stop = true; clearInterval(id); };
+  }, []);
+  const rows = u ? Object.entries(u.owners).sort((a, b) => b[1].used - a[1].used) : [];
+  return (
+    <div className="mt-3 sm:max-w-sm">
+      <h4 className="text-theme-xs font-semibold text-gray-900 dark:text-white">{t("mon.usage")}{u ? <span className="mono ms-2 font-normal text-muted" dir="ltr">{u.used}/{u.limit}</span> : null}</h4>
+      {!rows.length ? <p className="text-theme-xs text-muted">{t("mon.usageNone")}</p> : (
+        <ul className="mt-1 grid gap-0.5 text-theme-xs">
+          {rows.map(([name, o]) => (
+            <li key={name} className="flex justify-between gap-3"><span className="mono" dir="ltr">{name}</span>
+              <span className="mono text-muted" dir="ltr">{o.used}{o.denied ? ` (${o.denied} ${t("mon.usageDenied")})` : ""}</span></li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-1 text-theme-xs text-muted">{t("mon.usageHelp")}</p>
+    </div>
   );
 }

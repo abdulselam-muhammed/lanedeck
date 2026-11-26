@@ -5,10 +5,15 @@
 // excerpt and link are ETag-cached and capped per poll. Notifications of repos that no project links are dropped as soon as
 // the list arrives: they are never enriched, stored, logged or sent to the page.
 // Read / unread is lanedeck's own state (<data>/data/notify/read.json); nothing is marked read on GitHub.
+// Low load: GitHub has no push channel for a user's notifications, so this is ONE server-side poller, and it polls only while
+// someone is looking (`wanted()`: a page is connected, or /api/notify was asked within IDLE_GRACE_MS). With nobody looking it
+// sleeps (no timer, no gh call); the next page that connects wakes it for one catch-up poll, never sooner than X-Poll-Interval
+// after the last one. Every result goes to the open pages through `onChange` (server/index.mjs pushes it over the SSE
+// channel), so tabs never poll; the unread counts come from this cached state.
 //   GET  /api/notify[?scope=all]   { state, settings, items, counts } for the project (or every project with scope=all)
 //   POST /api/notify/read          { ids: [...] } or { all: true }: mark rows of that scope read (local only);
 //                                  { ids: [...], unread: true } marks those rows unread again
-//   POST /api/notify/refresh       poll GitHub now (at most once every 20 s)
+//   POST /api/notify/refresh       poll GitHub now (at most once every 30 s, and never sooner than X-Poll-Interval)
 import fs from "node:fs";
 import path from "node:path";
 import { getConfig, projectById } from "../config.mjs";
@@ -20,7 +25,8 @@ import { countsOf, emptyRead, errorCode, keepLinked, markRead, markUnread, parse
 const WHO = "notify";
 const API = "https://api.github.com/";
 const ENRICH_PER_POLL = 12;
-const FORCE_MS = 20e3;
+const FORCE_MS = 30e3;
+const IDLE_GRACE_MS = 180e3; // a plain GET /api/notify (no live channel) keeps the poller awake this long
 const MAX_BODY = 64 * 1024;
 const MAX_ROWS = 200;
 
@@ -60,9 +66,11 @@ const apiPath = (u) => (typeof u === "string" && u.startsWith(API) && !/[\s"'`]/
  * @param {Function} [o.config]   () -> the config (projects, notifications, tools)
  * @param {Function} [o.spend], [o.refund]   the shared budget
  * @param {Function} [o.onFresh]  (rows) -> void: rows that became unread since the last poll (never on the first poll)
+ * @param {Function} [o.onChange] () -> void: the answer may have changed (after a poll, a mark read / unread): push it to the pages
+ * @param {Function} [o.wanted]   () -> boolean: is a page looking? false = sleep until wake()
  * @param {boolean} [o.autostart] start polling (false in tests)
  */
-export function createNotify({ root, run = defaultRun, now = Date.now, config = getConfig, spend = budgetSpend, refund = budgetRefund, onFresh = () => {}, autostart = true } = {}) {
+export function createNotify({ root, run = defaultRun, now = Date.now, config = getConfig, spend = budgetSpend, refund = budgetRefund, onFresh = () => {}, onChange = () => {}, wanted = () => true, autostart = true } = {}) {
   const dir = path.join(root, "data", "notify");
   const file = path.join(dir, "read.json");
   let readState = emptyRead();
@@ -88,6 +96,11 @@ export function createNotify({ root, run = defaultRun, now = Date.now, config = 
   let timer = null;
   let busy = null;
   let stopped = false;
+  let sleeping = false;
+  let lastPollAt = 0; // when the notifications list was last asked from GitHub
+  let seenAt = 0; // the last GET /api/notify
+  const looking = () => { try { return !!wanted() || now() - seenAt < IDLE_GRACE_MS; } catch { return true; } };
+  const changed = () => { try { onChange(); } catch { /* listener */ } };
   const state = { code: "loading", text: null, at: null, checkedAt: null, nextAt: null, resetAt: null };
   const settings = () => config().notifications;
   const gh = () => config().tools.gh;
@@ -192,6 +205,7 @@ export function createNotify({ root, run = defaultRun, now = Date.now, config = 
     if (now() < pauseUntil) { Object.assign(state, { code: "ratelimit", resetAt: pauseUntil }); return pauseUntil - now(); }
     // Day-granular `since`, so the URL (and its Last-Modified) stays the same all day.
     const since = new Date(now() - 14 * 864e5).toISOString().slice(0, 10) + "T00:00:00Z";
+    lastPollAt = now();
     const r = await get(`notifications?all=true&participating=false&per_page=50&since=${since}`, { lm: true });
     const asked = Number(r.h?.("x-poll-interval")) || 60;
     pollSeconds = Math.max(s.github.pollSeconds, asked);
@@ -235,22 +249,34 @@ export function createNotify({ root, run = defaultRun, now = Date.now, config = 
     return pollSeconds * 1000;
   }
 
+  /** Nobody is looking: no timer, no gh call, until wake(). */
+  function sleep() { clearTimeout(timer); timer = null; sleeping = true; state.nextAt = null; }
   function schedule(ms) {
     if (stopped) return;
     clearTimeout(timer);
+    if (!looking()) return sleep();
+    sleeping = false;
     ms = Math.min(Math.max(ms, 1000), 3600e3);
     state.nextAt = now() + ms;
-    timer = setTimeout(tick, ms);
+    // Checked again when it fires: the last page may have gone in the meantime.
+    timer = setTimeout(() => (looking() ? tick() : sleep()), ms);
     timer.unref?.();
   }
   function tick() {
     if (busy) return busy;
     busy = poll()
       .catch((e) => { Object.assign(state, { code: "failed", text: scrub(String(e?.message || e)).slice(0, 200) }); return 120e3; })
-      .then((ms) => { busy = null; if (ms != null) schedule(ms); });
+      .then((ms) => { busy = null; if (ms != null) schedule(ms); changed(); });
     return busy;
   }
-  if (autostart) { timer = setTimeout(tick, 4000); timer.unref?.(); }
+  /** A page arrived: a sleeping poller does one catch-up poll, never sooner than X-Poll-Interval after the last one. */
+  function wake() {
+    if (stopped || busy || !sleeping) return;
+    sleeping = false;
+    schedule(Math.max(0, lastPollAt + pollSeconds * 1000 - now()));
+  }
+  // The first poll waits for the first page (it starts asleep when nobody is looking).
+  if (autostart) { timer = setTimeout(() => (looking() ? tick() : sleep()), 4000); timer.unref?.(); }
 
   /** The answer for one scope ("all" or a project id). */
   function answer(scope) {
@@ -271,7 +297,7 @@ export function createNotify({ root, run = defaultRun, now = Date.now, config = 
   function unreadScope(scope, ids) {
     const want = new Set(ids.map(String));
     const n = markUnread(readState, view(items, readState, scope, settings().github.sections).filter((r) => want.has(r.id)));
-    if (n) save();
+    if (n) { save(); changed(); }
     return n;
   }
 
@@ -280,7 +306,7 @@ export function createNotify({ root, run = defaultRun, now = Date.now, config = 
     const rows = view(items, readState, scope, settings().github.sections);
     const want = ids ? new Set(ids.map(String)) : null;
     const n = markRead(readState, want ? rows.filter((r) => want.has(r.id)) : rows);
-    if (n) save();
+    if (n) { save(); changed(); }
     return n;
   }
 
@@ -299,6 +325,9 @@ export function createNotify({ root, run = defaultRun, now = Date.now, config = 
   return {
     answer,
     tick,
+    wake,
+    /** True while the poller sleeps (nobody looking). */
+    sleeping: () => sleeping,
     markRead: markScope,
     stop() { stopped = true; clearTimeout(timer); },
     /** /api/notify, /api/notify/read, /api/notify/refresh. `pid` is the project of the URL; ?scope=all asks for every project. */
@@ -307,6 +336,8 @@ export function createNotify({ root, run = defaultRun, now = Date.now, config = 
       if (p !== "/api/notify" && p !== "/api/notify/read" && p !== "/api/notify/refresh") return false;
       const scope = url.searchParams.get("scope") === "all" ? "all" : pid;
       if (scope !== "all" && !projectById(scope)) return reply(res, 404, { error: "unknown project" }), true;
+      seenAt = now();
+      wake();
       if (p === "/api/notify") {
         if (req.method !== "GET") return reply(res, 405, { error: "method not allowed" }), true;
         return reply(res, 200, answer(scope)), true;
@@ -318,7 +349,9 @@ export function createNotify({ root, run = defaultRun, now = Date.now, config = 
       const body = await readBody(req);
       if (!body || typeof body !== "object") return reply(res, 400, { error: "bad body" }), true;
       if (p === "/api/notify/refresh") {
-        if (now() - forcedAt > FORCE_MS) { forcedAt = now(); clearTimeout(timer); await tick(); }
+        // A forced poll still obeys GitHub's X-Poll-Interval: inside it the cached answer is the freshest there is.
+        const gap = Math.max(FORCE_MS, pollSeconds * 1000);
+        if (now() - forcedAt >= FORCE_MS && now() - lastPollAt >= gap) { forcedAt = now(); clearTimeout(timer); await tick(); }
         return reply(res, 200, answer(scope)), true;
       }
       const ids = Array.isArray(body.ids) ? body.ids.filter((x) => /^\d{1,30}$/.test(String(x))).slice(0, 500) : null;
