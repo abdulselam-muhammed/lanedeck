@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import { useInbox } from "@/components/inbox/InboxContext";
 import { useMark, useProject, useT } from "@/context/ConfigContext";
 import { onFresh, useNotify } from "@/lib/notify/useNotify";
+import { kindOf } from "@/lib/notify/list.mjs";
 
 export default function NotifyNotifier() {
   const { id } = useProject();
@@ -20,8 +21,8 @@ export default function NotifyNotifier() {
       onFresh(({ fresh }) => {
         const { t, toast, browser, icon } = ref.current;
         for (const it of fresh.slice(0, 3)) {
-          const title = t("ntf.toast.title", { section: t(`ntf.sec.${it.section}`) });
-          const body = `${it.repo}${it.number != null ? `#${it.number}` : ""} · ${it.title}`;
+          const title = t("ntf.toast.title", { section: t(`ntf.kindLabel.${kindOf(it)}`) });
+          const body = `${it.actor ? `${it.actor} · ` : ""}${it.repo}${it.number != null ? `#${it.number}` : ""} · ${it.title}`;
           toast(title, body, "", it.projects.includes(ref.current.id) ? "__github" : "__github_all");
           if (browser && "Notification" in window && Notification.permission === "granted") {
             try {

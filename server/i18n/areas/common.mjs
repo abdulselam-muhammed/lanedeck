@@ -11,6 +11,9 @@ export const en = {
   "conflict.boardNote": "There is also a conflict on board files ({files}) — {reviewer} resolves it inside the batch, not shown here.",
   "prs.desc": "Every open PR of the repo, live: where it stands, who it waits for, what failed, what merged.",
   "glossary.desc": "Terms of this project. Add them through the project profile; general terms live in the general glossary.",
+  "dialog.cancel": "Cancel",
+  "dialog.confirm": "Confirm",
+  "dialog.ok": "OK",
 };
 export const ar = {
   "nav.flow": "خريطة العمل",
@@ -24,4 +27,7 @@ export const ar = {
   "conflict.boardNote": "وكمان تعارض بملفات الـ board ({files}) — يحلّه {reviewer} داخل الـ batch، غير معروض هون.",
   "prs.desc": "كل الـ PRs المفتوحة على الريبو مباشرة: وين واقفة، مين عم تستنى، شو فشل، وشو اندمج.",
   "glossary.desc": "مصطلحات هذا المشروع. أضفها عبر profile المشروع؛ المصطلحات العامة بالمسرد العام.",
+  "dialog.cancel": "إلغاء",
+  "dialog.confirm": "تأكيد",
+  "dialog.ok": "حسناً",
 };

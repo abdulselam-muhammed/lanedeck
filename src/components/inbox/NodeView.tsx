@@ -14,6 +14,7 @@ import { QuestionCard } from "./QuestionsView";
 import FlowCanvas from "./FlowCanvas";
 import { useProject, useT } from "@/context/ConfigContext";
 import { SetupActions } from "@/components/setup/Setup";
+import { ArchiveFileButton } from "./ArchiveUI";
 
 /** The text of a file: markdown, with every "## ID" question drawn as a question card (as the old renderDoc). */
 export function DocText({ f }: { f: InboxFile }) {
@@ -142,10 +143,11 @@ export default function NodeView({ n }: { n: TreeNode }) {
             {f && <span className="tnum">{t("inbox.node.updated")} <RelTime at={f.mtime} /></span>}
           </div>
         </div>
-        {f && flow && (
+        {f && (
           <div className="flex items-center gap-2">
-            <ModeSwitch f={f} mode={mode} />
-            {mode === "flow" && (
+            <ArchiveFileButton f={f} />
+            {flow && <ModeSwitch f={f} mode={mode} />}
+            {flow && mode === "flow" && (
               <Link href={base + "/flow/" + encodeURIComponent(f.name)} className="header-icon-btn h-9! w-9!" title={t("inbox.node.fullMap")} aria-label={t("inbox.node.fullMap")}>
                 <Icon name="expand" className="s14" />
               </Link>

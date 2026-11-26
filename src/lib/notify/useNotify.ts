@@ -6,16 +6,25 @@
 // Nothing here talks to GitHub: the one server poller does, read-only (a manual Refresh asks it, rate-limited there).
 import { useCallback, useSyncExternalStore } from "react";
 
-export type GhSection = "mentions" | "replies" | "review" | "reviews" | "assigned" | "state";
-export const GH_SECTIONS: GhSection[] = ["mentions", "replies", "review", "reviews", "assigned", "state"];
+export type GhSection = "mentions" | "replies" | "review" | "reviews" | "assigned" | "state" | "other";
+export const GH_SECTIONS: GhSection[] = ["mentions", "replies", "review", "reviews", "assigned", "state", "other"];
 export type GhItem = {
   id: string;
   repo: string;
   projects: string[];
   section: GhSection;
+  /** What actually happened (server/notify/events.mjs EVENTS): the row's sentence, badge and chip follow it. */
+  event: string;
+  /** The latest event is your own action: never unread, worded "You ...". */
+  self: boolean;
+  /** The event is known (false while the thread has not been read yet: a generic row). */
+  resolved: boolean;
+  /** Why GitHub subscribed you (sticky): only shown as the "why" of a generic row. */
   reason: string;
   type: string;
   number: number | null;
+  /** A commit's short sha or a release's name, for threads without a number. */
+  ref: string | null;
   title: string;
   url: string | null;
   actor: string | null;
@@ -26,14 +35,18 @@ export type GhItem = {
   state: string | null;
   at: string;
   unread: boolean;
+  /** Only on an archived row: when it was archived (local; nothing is written to GitHub). */
+  archivedAt?: string;
 };
 export type GhStateCode = "ok" | "loading" | "disabled" | "norepos" | "nogh" | "auth" | "scope" | "ratelimit" | "budget" | "network" | "failed";
 export type GhAnswer = {
   state: { code: GhStateCode; text: string | null; at: number | null; checkedAt: number | null; nextAt: number | null; resetAt: number | null; pollSeconds: number };
-  settings: { enabled: boolean; sections: GhSection[]; pollSeconds: number; browser: boolean };
+  settings: { enabled: boolean; sections: GhSection[]; pollSeconds: number; hideSelf: boolean; browser: boolean };
   repos: string[];
   items: GhItem[];
-  counts: { total: number; unread: number; sections: Record<GhSection, number> };
+  /** The archived rows of the scope (local): a thread with newer activity leaves this list and is back in `items`. */
+  archived: GhItem[];
+  counts: { total: number; unread: number; sections: Record<GhSection, number>; archived: number };
 };
 
 type Snap = { data: GhAnswer | null; failed: boolean };
@@ -127,7 +140,7 @@ export function onFresh(fn: (d: GhFresh) => void) {
   return () => void freshSubs.delete(fn);
 }
 
-/** The GitHub rows of a scope (null until the first answer), and the mark-read / mark-unread / refresh actions. */
+/** The GitHub rows of a scope (null until the first answer), and the mark-read / mark-unread / archive / restore / refresh actions. */
 export function useNotify(scope: string) {
   const sub = useCallback((cb: () => void) => subscribe(scope, cb), [scope]);
   const snap = useSyncExternalStore(sub, () => entryOf(scope).snap, () => EMPTY);
@@ -135,5 +148,9 @@ export function useNotify(scope: string) {
   const markUnread = useCallback((ids: string[]) => post(scope, "/read", { ids, unread: true }), [scope]);
   const markAllRead = useCallback(() => post(scope, "/read", { all: true }), [scope]);
   const refresh = useCallback(() => post(scope, "/refresh", {}), [scope]);
-  return { data: snap.data, failed: snap.failed, markRead, markUnread, markAllRead, refresh };
+  const archive = useCallback((ids: string[]) => post(scope, "/archive", { ids }), [scope]);
+  const archiveRead = useCallback(() => post(scope, "/archive", { read: true }), [scope]);
+  const restore = useCallback((ids: string[]) => post(scope, "/restore", { ids }), [scope]);
+  const restoreAll = useCallback(() => post(scope, "/restore", { all: true }), [scope]);
+  return { data: snap.data, failed: snap.failed, markRead, markUnread, markAllRead, refresh, archive, archiveRead, restore, restoreAll };
 }

@@ -13,9 +13,11 @@ import { Empty, Led } from "@/components/inbox/bits";
 import InboxList from "@/components/inbox/InboxList";
 import NodeView from "@/components/inbox/NodeView";
 import AgentSide from "@/components/inbox/LivePanel";
+import { ArchivedPanel, useArchivedCount } from "@/components/inbox/ArchiveUI";
+import { archiveTotal } from "@/lib/notify/list.mjs";
 import { useProject, useT } from "@/context/ConfigContext";
 import { useNotify } from "@/lib/notify/useNotify";
-import { AgentRow, AllList, GhChecked, GithubTab, InboxTab, InboxTabs, MarkAllButton, tabOf } from "@/components/notify/UnifiedInbox";
+import { AgentRow, AllList, GhChecked, GithubTab, InboxTab, InboxTabs, MarkAllButton, tabFromParams, useGhArchive } from "@/components/notify/UnifiedInbox";
 
 export function useMedia(q: string) {
   const [m, setM] = useState(false);
@@ -37,16 +39,18 @@ export default function InboxPage() {
   const params = useSearchParams();
   const gh = useNotify(id);
   const [saved, setSaved] = useState<InboxTab | null>(null);
-  useEffect(() => setSaved(tabOf(pstore.get<string>("inbox.tab", "all")) ?? "all"), [pstore]);
+  useEffect(() => setSaved(tabFromParams(pstore.get<string>("inbox.tab", "all"), null) ?? "all"), [pstore]);
   // A file or agent on screen is the AI agents tab; otherwise ?tab=, else the tab you used last.
   const onFile = !!selected && !selected.startsWith("__");
-  const tab: InboxTab = onFile ? "agents" : (tabOf(params.get("tab")) ?? saved ?? "all");
+  const tab: InboxTab = onFile ? "agents" : (tabFromParams(params.get("tab"), params.get("view")) ?? saved ?? "all");
   const go = (v: InboxTab) => {
-    pstore.set("inbox.tab", v);
-    setSaved(v);
+    if (v !== "archive") { pstore.set("inbox.tab", v); setSaved(v); }
     router.replace(`${base}/inbox${v === "agents" ? "" : `?tab=${v}`}`, { scroll: false });
   };
   const ghUnread = gh.data?.counts.unread ?? 0;
+  const ghArch = useGhArchive(gh, toast);
+  // The Archive tab: archived agent files and archived GitHub notifications, counted apart from All.
+  const archived = archiveTotal(useArchivedCount(), gh.data?.counts.archived);
   const agentRows: AgentRow[] = [...tree.nodes.values()]
     .filter((n) => n.file && !isReadme(n.file))
     .map((n) => ({ key: n.key, href: hrefOf(n.key, base), title: titleOf(n), sub: n.file!.statusText || n.file!.name, at: whenOf(n), unread: unreadOf(n.file!), lead: <Led n={n} /> }));
@@ -54,17 +58,18 @@ export default function InboxPage() {
     const n = await gh.markAllRead();
     toast(n ? t("ntf.markedN", { n }) : t("ntf.nothingUnread"), t("ntf.localOnly"), "");
   };
-  const mark = tab === "github" ? markGh : tab === "agents" ? markAllRead : async () => { if (ghUnread) await gh.markAllRead(); markAllRead(); };
+  const mark = tab === "github" ? markGh : tab === "agents" || tab === "archive" ? markAllRead : async () => { if (ghUnread) await gh.markAllRead(); markAllRead(); };
   const unreadHere = tab === "github" ? ghUnread : tab === "agents" ? unreadCount : unreadCount + ghUnread;
   return (
     <>
-      <InboxTabs tab={tab} onTab={go} counts={{ agents: unreadCount, github: ghUnread }}>
-        {tab !== "agents" && <GhChecked data={gh.data} onRefresh={gh.refresh} />}
-        <MarkAllButton n={unreadHere} onClick={mark} />
+      <InboxTabs tab={tab} onTab={go} counts={{ agents: unreadCount, github: ghUnread, archived }}>
+        {(tab === "all" || tab === "github") && <GhChecked data={gh.data} onRefresh={gh.refresh} />}
+        {tab !== "archive" && <MarkAllButton n={unreadHere} onClick={mark} />}
       </InboxTabs>
       {tab === "agents" && <AgentsInbox />}
-      {tab === "all" && (updatedAt ? <AllList agents={agentRows} gh={gh.data} failed={gh.failed} onRead={gh.markRead} onUnread={gh.markUnread} /> : <Empty icon="loader">{t("inbox.connecting")}</Empty>)}
-      {tab === "github" && <GithubTab data={gh.data} failed={gh.failed} onRead={gh.markRead} onUnread={gh.markUnread} />}
+      {tab === "all" && (updatedAt ? <AllList agents={agentRows} gh={gh.data} failed={gh.failed} onRead={gh.markRead} onUnread={gh.markUnread} arch={ghArch} /> : <Empty icon="loader">{t("inbox.connecting")}</Empty>)}
+      {tab === "github" && <GithubTab data={gh.data} failed={gh.failed} onRead={gh.markRead} onUnread={gh.markUnread} arch={ghArch} />}
+      {tab === "archive" && (updatedAt ? <ArchivedPanel ghScope={id} /> : <Empty icon="loader">{t("inbox.connecting")}</Empty>)}
     </>
   );
 }

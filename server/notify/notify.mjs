@@ -1,10 +1,15 @@
 // The GitHub side of the Inbox: your GitHub notifications for the repos linked to lanedeck projects, grouped in sections.
 // READ-ONLY on GitHub: every call is a GET through `gh api` (the user's own gh login; no token is read or stored here), counted
 // against the shared hourly budget (server/budget.mjs). The list is polled with If-Modified-Since (a 304 costs nothing and is
-// refunded) at the larger of the configured interval and GitHub's X-Poll-Interval; the extra reads that give a row its actor,
-// excerpt and link are ETag-cached and capped per poll. Notifications of repos that no project links are dropped as soon as
+// refunded) at the larger of the configured interval and GitHub's X-Poll-Interval. A row says what actually happened (merged,
+// closed, commented, reviewed, ...; server/notify/events.mjs), never what GitHub's sticky `reason` says: the extra reads that
+// tell it (the latest comment, then the subject, then the newest timeline page only when those do not explain the thread's
+// updated_at) run only for threads whose updated_at changed, are ETag-cached (a 304 is refunded) and capped per poll, in
+// threads and in calls. Notifications of repos that no project links are dropped as soon as
 // the list arrives: they are never enriched, stored, logged or sent to the page.
-// Read / unread is lanedeck's own state (<data>/data/notify/read.json); nothing is marked read on GitHub.
+// Read / unread is lanedeck's own state (<data>/data/notify/read.json); nothing is marked read on GitHub. So is the archive
+// (<data>/data/notify/archive.json: thread id -> the updated_at it was archived at); nothing is marked done on GitHub, and
+// archiving costs no GitHub call.
 // Low load: GitHub has no push channel for a user's notifications, so this is ONE server-side poller, and it polls only while
 // someone is looking (`wanted()`: a page is connected, or /api/notify was asked within IDLE_GRACE_MS). With nobody looking it
 // sleeps (no timer, no gh call); the next page that connects wakes it for one catch-up poll, never sooner than X-Poll-Interval
@@ -14,17 +19,24 @@
 //   POST /api/notify/read          { ids: [...] } or { all: true }: mark rows of that scope read (local only);
 //                                  { ids: [...], unread: true } marks those rows unread again
 //   POST /api/notify/refresh       poll GitHub now (at most once every 30 s, and never sooner than X-Poll-Interval)
+//   POST /api/notify/archive       { ids: [...] } or { read: true } (every read row of that scope): archive them (local only,
+//                                  <data>/data/notify/archive.json); a thread with newer activity comes back by itself
+//   POST /api/notify/restore       { ids: [...] } or { all: true }: archived rows of that scope back to the inbox
 import fs from "node:fs";
 import path from "node:path";
 import { getConfig, projectById } from "../config.mjs";
 import { refund as budgetRefund, spend as budgetSpend } from "../budget.mjs";
 import { killTree, safeSpawn } from "../platform.mjs";
 import { scrub } from "../ci/scrub.mjs";
-import { countsOf, emptyRead, errorCode, keepLinked, markRead, markUnread, parseRead, prune, repoIndex, seed, toItem, view } from "./logic.mjs";
+import { archive, countsOf, emptyArchive, emptyRead, errorCode, keepLinked, markRead, markUnread, parseArchive, parseRead, prune, pruneArchive, repoIndex, returned, seed, toItem, unarchive, view } from "./logic.mjs";
+import { commentKind, deriveEvent, explained, preSection, refOf } from "./events.mjs";
 
 const WHO = "notify";
 const API = "https://api.github.com/";
-const ENRICH_PER_POLL = 12;
+const ENRICH_PER_POLL = 12; // threads read per poll (the rest next time)
+const CALLS_PER_POLL = 30; // gh calls those reads may make per poll
+const MAX_TEXT = 8000; // a body is kept this long (enough to find an @mention, small enough to cache)
+const DEFER = Symbol("defer"); // out of calls, budget or rate limit: this thread is read again next poll
 const FORCE_MS = 30e3;
 const IDLE_GRACE_MS = 180e3; // a plain GET /api/notify (no live channel) keeps the poller awake this long
 const MAX_BODY = 64 * 1024;
@@ -58,6 +70,31 @@ export function parseHttp(out) {
 /** Only api.github.com URLs are followed, as a path for `gh api`; anything else is null. */
 const apiPath = (u) => (typeof u === "string" && u.startsWith(API) && !/[\s"'`]/.test(u) ? u.slice(API.length) : null);
 
+// What is kept of each read (the ETag cache holds these, not GitHub's full answers).
+const user = (u) => (u && typeof u === "object" && u.login ? { login: String(u.login), avatar_url: u.avatar_url || null } : null);
+const text = (b) => (typeof b === "string" ? b.slice(0, MAX_TEXT) : "");
+export const slimComment = (c) => (c && typeof c === "object" && !Array.isArray(c) ? { user: user(c.user), body: text(c.body), html_url: c.html_url || null, created_at: c.created_at || null, submitted_at: c.submitted_at || null, state: c.state || null } : null);
+export const slimSubject = (x) => (x && typeof x === "object" && !Array.isArray(x)
+  ? { state: x.state || null, merged: !!x.merged, merged_at: x.merged_at || null, merged_by: user(x.merged_by), closed_at: x.closed_at || null, closed_by: user(x.closed_by), user: user(x.user), created_at: x.created_at || null, body: text(x.body), html_url: x.html_url || null, assignees: Array.isArray(x.assignees) ? x.assignees.map(user).filter(Boolean) : null }
+  : null);
+export const slimTimeline = (list) => (Array.isArray(list)
+  ? list.filter((x) => x && typeof x === "object" && x.event).map((x) => ({
+    event: String(x.event), created_at: x.created_at || null, submitted_at: x.submitted_at || null, state: x.state || null, body: text(x.body), html_url: x.html_url || null,
+    user: user(x.user), actor: user(x.actor), assignee: user(x.assignee), assigner: user(x.assigner), requested_reviewer: user(x.requested_reviewer), review_requester: user(x.review_requester),
+    requested_team: x.requested_team ? { name: String(x.requested_team.name || "") } : null,
+    comments: Array.isArray(x.comments) && x.comments.length ? [slimComment(x.comments[x.comments.length - 1])] : undefined,
+  }))
+  : null);
+const slimRelease = (r) => (r && typeof r === "object" && !Array.isArray(r) ? { author: user(r.author), name: r.name || null, tag_name: r.tag_name || null, html_url: r.html_url || null, body: text(r.body) } : null);
+/** The page number of a Link header's rel (GitHub paginates the timeline oldest first, so the newest events are on the last page). */
+export function linkPage(link, rel) {
+  for (const part of String(link || "").split(",")) {
+    const m = /<([^>]*)>\s*;\s*rel="([^"]+)"/.exec(part);
+    if (m && m[2] === rel) { const k = /[?&]page=(\d+)/.exec(m[1]); return k ? Number(k[1]) : null; }
+  }
+  return null;
+}
+
 /**
  * @param {object} o
  * @param {string} o.root         the data root (<root>/data/notify/read.json)
@@ -75,21 +112,30 @@ export function createNotify({ root, run = defaultRun, now = Date.now, config = 
   const file = path.join(dir, "read.json");
   let readState = emptyRead();
   try { readState = parseRead(fs.readFileSync(file, "utf8")); } catch { /* first run */ }
-  const save = () => {
+  const archFile = path.join(dir, "archive.json");
+  let archState = emptyArchive();
+  try { archState = parseArchive(fs.readFileSync(archFile, "utf8")); } catch { /* first run */ }
+  const write = (f, v, what) => {
     try {
       fs.mkdirSync(dir, { recursive: true });
-      const tmp = file + ".tmp";
-      fs.writeFileSync(tmp, JSON.stringify(readState));
-      fs.renameSync(tmp, file);
-    } catch (e) { console.error("notify: read state not saved:", scrub(e.message)); }
+      const tmp = f + ".tmp";
+      fs.writeFileSync(tmp, JSON.stringify(v));
+      fs.renameSync(tmp, f);
+    } catch (e) { console.error(`notify: ${what} not saved:`, scrub(e.message)); }
   };
+  const save = () => write(file, readState, "read state");
+  const saveArch = () => write(archFile, archState, "archive");
 
-  const cache = new Map(); // api path -> { etag, lastModified, body }
+  const cache = new Map(); // api path -> { etag, lastModified, body } (bodies slimmed)
+  const lastPage = new Map(); // timeline path -> its last page number
   const details = new Map(); // thread id -> { at, detail }
   let raw = null; // the last notifications list (only kept to re-filter when the linked repos change)
   let items = [];
   let known = null; // thread id -> updated_at of the last poll (null until the first poll)
   let me = null;
+  let meTried = 0; // the poll that last tried to learn `me` (at most one try per poll)
+  let pollNo = 0;
+  let callsLeft = 0;
   let pauseUntil = 0;
   let pollSeconds = 60;
   let forcedAt = 0;
@@ -103,10 +149,11 @@ export function createNotify({ root, run = defaultRun, now = Date.now, config = 
   const changed = () => { try { onChange(); } catch { /* listener */ } };
   const state = { code: "loading", text: null, at: null, checkedAt: null, nextAt: null, resetAt: null };
   const settings = () => config().notifications;
+  const opts = (archived = false) => ({ hideSelf: settings().github.hideSelf !== false, arch: archState, archived });
   const gh = () => config().tools.gh;
 
   /** One GET. `lm`: use If-Modified-Since (the notifications list) instead of If-None-Match. */
-  async function get(p, { lm = false } = {}) {
+  async function get(p, { lm = false, slim = null } = {}) {
     if (!spend(1, WHO)) return { status: 0, budget: true };
     const prev = cache.get(p);
     const args = ["api", "-i", "-H", "Accept: application/vnd.github+json", p];
@@ -123,70 +170,78 @@ export function createNotify({ root, run = defaultRun, now = Date.now, config = 
     }
     if (status === 304 && prev) return { status, h, body: prev.body, cached: true };
     if (status !== 200) return { status, h, err: (r.err || (body && body.message) || "").trim() };
-    cache.set(p, { etag: h("etag"), lastModified: h("last-modified"), body });
+    const kept = slim ? slim(body) : body;
+    cache.delete(p);
+    cache.set(p, { etag: h("etag"), lastModified: h("last-modified"), body: kept });
     if (cache.size > 600) cache.delete(cache.keys().next().value);
-    return { status, h, body };
+    return { status, h, body: kept };
   }
 
+  /** An enrichment read: counted against the per-poll cap; out of calls, budget or rate limit -> DEFER (read next poll). */
+  async function read(p, slim) {
+    if (callsLeft <= 0) throw DEFER;
+    callsLeft--;
+    const r = await get(p, { slim });
+    if (r.budget || r.status === 429 || r.status === 0) throw DEFER;
+    return r;
+  }
+
+  /** Your login (one call per process; a failure is tried again at most once per poll). Null when unknown. */
   async function login() {
-    if (me) return me;
-    const r = await get("user");
+    if (me || meTried === pollNo) return me;
+    meTried = pollNo;
+    const r = await read("user", (b) => (b && b.login ? { login: String(b.login) } : null));
     if (r.body?.login) me = r.body.login;
     return me;
   }
 
-  /** What the row needs beyond the list: who did it, a short excerpt, the html link, review / open-closed state. */
+  /** The newest page of a thread's timeline (the page number is remembered, so later polls ask that page with its ETag). */
+  async function timeline(su) {
+    const base = su.replace(/\/pulls\/(\d+)$/, "/issues/$1") + "/timeline?per_page=100";
+    let page = lastPage.get(base) || 1;
+    const at = (k) => (k > 1 ? `${base}&page=${k}` : base);
+    let r = await read(at(page), slimTimeline);
+    const last = linkPage(r.h?.("link"), "last");
+    if (last && last > page) { page = last; r = await read(at(page), slimTimeline); }
+    lastPage.delete(base);
+    lastPage.set(base, page);
+    if (lastPage.size > 400) lastPage.delete(lastPage.keys().next().value);
+    return Array.isArray(r.body) ? r.body : null;
+  }
+
+  /**
+   * What a row needs beyond the list, and what really happened (server/notify/events.mjs):
+   *   1. the latest comment, when latest_comment_url is a comment (a 404 = deleted: the row degrades to the subject);
+   *   2. the issue / PR itself, when the comment does not explain the thread's updated_at (or there is no comment);
+   *   3. the newest timeline page, only when neither explains it (reopened, assigned, review requested, closed PR, ...).
+   */
   async function enrich(n) {
     const s = n.subject || {};
-    const d = { actor: null, avatar: null, body: "", url: null, review: null, state: null, commented: false, commentAt: null };
+    const facts = { comment: null, subject: null, timeline: null, release: null };
     const lc = apiPath(s.latest_comment_url);
     const su = apiPath(s.url);
-    if (lc && lc !== su) {
-      const c = await get(lc);
-      if (c.body && typeof c.body === "object") {
-        d.actor = c.body.user?.login || null;
-        d.avatar = c.body.user?.avatar_url || null;
-        d.body = c.body.body || "";
-        d.url = c.body.html_url || null;
-        d.commented = true;
-        d.commentAt = c.body.submitted_at || c.body.updated_at || c.body.created_at || null;
-        if (/\/pulls\/\d+\/reviews\/\d+$/.test(lc) && c.body.state) d.review = { state: c.body.state };
-      }
+    const thread = !!su && /^repos\/[\w.-]+\/[\w.-]+\/(issues|pulls)\/\d+$/.test(su) && (s.type === "Issue" || s.type === "PullRequest");
+    const needsMe = thread || s.type === "Commit" || s.type === "Release";
+    const who = needsMe ? await login() : me;
+    const kind = lc && lc !== su ? commentKind(lc) : null;
+    if (kind) {
+      const c = await read(lc, slimComment);
+      if (c.status === 404 || c.status === 410) facts.comment = { missing: true };
+      else if (c.body) facts.comment = { kind, user: c.body.user, body: c.body.body, html_url: c.body.html_url, at: c.body.submitted_at || c.body.created_at, state: c.body.state };
     }
-    const thread = su && /^repos\/[\w.-]+\/[\w.-]+\/(issues|pulls)\/\d+$/.test(su);
-    if (thread && (!d.commented || n.reason === "state_change")) {
-      const x = await get(su);
-      if (x.body && typeof x.body === "object") {
-        d.state = x.body.merged_at || x.body.merged ? "merged" : x.body.state || null;
-        const closer = x.body.merged_by || x.body.closed_by || null;
-        if (!d.actor) {
-          const who = (d.state !== "open" && (n.reason === "state_change" || n.reason === "author") && closer?.login ? closer : null) || x.body.user || null;
-          d.actor = who?.login || null;
-          d.avatar = who?.avatar_url || null;
-        }
-        d.url ||= x.body.html_url || null;
-        if (!d.commented && n.reason !== "state_change") d.body = x.body.body || "";
+    if (thread) {
+      // A review on a PR the notification does not say is yours: the subject tells whose PR it is ("reviews" vs "replies").
+      const reviewElsewhere = kind === "review" && n.reason !== "author";
+      if (!explained(n, facts) || reviewElsewhere) {
+        const x = await read(su, slimSubject);
+        if (x.body) facts.subject = x.body;
       }
+      if (!explained(n, facts)) facts.timeline = await timeline(su);
+    } else if (s.type === "Release" && su && /^repos\/[\w.-]+\/[\w.-]+\/releases\/\d+$/.test(su)) {
+      const x = await read(su, slimRelease);
+      if (x.body) facts.release = x.body;
     }
-    if (thread && s.type === "PullRequest" && n.reason === "author" && !d.review) {
-      const who = await login();
-      const rv = await get(`${su}/reviews?per_page=100`);
-      if (Array.isArray(rv.body) && who) {
-        const latest = rv.body
-          .filter((x) => x?.user?.login && x.user.login.toLowerCase() !== who.toLowerCase() && x.submitted_at && x.state && x.state !== "PENDING")
-          .sort((a, b) => Date.parse(b.submitted_at) - Date.parse(a.submitted_at))[0];
-        const fresh = latest && Date.parse(latest.submitted_at) >= Date.parse(n.updated_at) - 120e3 && (!d.commentAt || Date.parse(latest.submitted_at) >= Date.parse(d.commentAt) - 5e3);
-        if (fresh) {
-          d.review = { state: latest.state };
-          d.actor = latest.user.login;
-          d.avatar = latest.user.avatar_url || null;
-          d.body = latest.body || d.body;
-          d.url = latest.html_url || d.url;
-          d.commented = true;
-        }
-      }
-    }
-    return d;
+    return { ...deriveEvent(n, facts, who), ref: refOf(n, facts) };
   }
 
   function rebuild() {
@@ -224,27 +279,40 @@ export function createNotify({ root, run = defaultRun, now = Date.now, config = 
     }
     if (Array.isArray(r.body)) raw = r.body;
     const { kept } = rebuild();
-    // The extra reads: rows that are new or have newer activity, newest first, a few per poll (the rest next time).
-    const todo = kept.filter((n) => details.get(String(n.id))?.at !== n.updated_at).sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at));
+    // The extra reads: rows that are new or have newer activity, newest first, a few per poll (the rest next time). Threads
+    // that can only land in "other" (CI, releases, security, watched threads) are not read while that section is hidden.
+    pollNo++;
+    callsLeft = CALLS_PER_POLL;
+    const other = s.github.sections.includes("other");
+    const todo = kept.filter((n) => details.get(String(n.id))?.at !== n.updated_at && (other || preSection(n) !== "other")).sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at));
     for (const n of todo.slice(0, ENRICH_PER_POLL)) {
       if (stopped) return null;
-      try { details.set(String(n.id), { at: n.updated_at, detail: await enrich(n) }); } catch { /* the row shows without its detail */ }
+      try { details.set(String(n.id), { at: n.updated_at, detail: await enrich(n) }); } catch (e) {
+        if (e === DEFER) break;
+        details.set(String(n.id), { at: n.updated_at, detail: { ...deriveEvent(n, {}, me), ref: refOf(n) } }); // unreadable: the generic row
+      }
     }
     const live = new Set(kept.map((n) => String(n.id)));
     for (const id of details.keys()) if (!live.has(id)) details.delete(id);
     rebuild();
     let dirty = seed(readState, items);
+    // Archived threads with newer activity come back to the inbox (Gmail-style): the archive entry goes, the row is unread.
+    let archDirty = returned(archState, items).length > 0;
     // Rows that became unread since the last poll (new threads, or new activity): the page raises a toast for them.
-    const shown = view(items, readState, "all", s.github.sections);
+    // Only rows whose event is known count: a row is announced once it says what happened (never "someone did something").
+    const shown = view(items, readState, "all", s.github.sections, opts());
     if (known) {
-      const fresh = shown.filter((it) => it.unread && known.get(it.id) !== it.at);
+      const fresh = shown.filter((it) => it.unread && it.resolved && known.get(it.id) !== it.at);
       if (fresh.length) { try { onFresh(fresh.slice(0, 5)); } catch { /* listener */ } }
     }
-    known = new Map(items.map((it) => [it.id, it.at]));
+    known = new Map(items.filter((it) => it.resolved).map((it) => [it.id, it.at]));
     const before = Object.keys(readState.read).length;
     prune(readState, live, now());
     if (Object.keys(readState.read).length !== before) dirty = true;
     if (dirty) save();
+    const archBefore = Object.keys(archState.threads).length;
+    pruneArchive(archState, live, now());
+    if (archDirty || Object.keys(archState.threads).length !== archBefore) saveArch();
     Object.assign(state, { code: "ok", text: null, at: now(), resetAt: null });
     return pollSeconds * 1000;
   }
@@ -281,32 +349,52 @@ export function createNotify({ root, run = defaultRun, now = Date.now, config = 
   /** The answer for one scope ("all" or a project id). */
   function answer(scope) {
     const s = settings();
-    const rows = s.github.enabled ? view(items, readState, scope, s.github.sections) : [];
+    const rows = s.github.enabled ? view(items, readState, scope, s.github.sections, opts()) : [];
+    const arch = s.github.enabled ? view(items, readState, scope, s.github.sections, opts(true)) : [];
     const linked = [...repoIndex(config().projects).entries()].filter(([, ids]) => scope === "all" || ids.includes(scope)).map(([r]) => r);
     const code = state.code === "ok" || state.code === "loading" ? (linked.length || !s.github.enabled ? state.code : "norepos") : state.code;
     return {
       state: { ...state, code, pollSeconds },
-      settings: { enabled: s.github.enabled, sections: s.github.sections, pollSeconds: s.github.pollSeconds, browser: s.browser },
+      settings: { enabled: s.github.enabled, sections: s.github.sections, pollSeconds: s.github.pollSeconds, hideSelf: s.github.hideSelf !== false, browser: s.browser },
       repos: linked,
       items: rows.slice(0, MAX_ROWS),
-      counts: countsOf(rows),
+      archived: arch.slice(0, MAX_ROWS),
+      counts: { ...countsOf(rows), archived: arch.length },
     };
   }
 
   /** Mark rows of a scope unread again (local only). Returns how many changed. */
   function unreadScope(scope, ids) {
     const want = new Set(ids.map(String));
-    const n = markUnread(readState, view(items, readState, scope, settings().github.sections).filter((r) => want.has(r.id)));
+    const n = markUnread(readState, view(items, readState, scope, settings().github.sections, opts()).filter((r) => want.has(r.id)));
     if (n) { save(); changed(); }
     return n;
   }
 
   /** Mark rows of a scope read. `ids` = those rows; null = every row of the scope. Returns how many changed. */
   function markScope(scope, ids = null) {
-    const rows = view(items, readState, scope, settings().github.sections);
+    const rows = view(items, readState, scope, settings().github.sections, opts());
     const want = ids ? new Set(ids.map(String)) : null;
     const n = markRead(readState, want ? rows.filter((r) => want.has(r.id)) : rows);
     if (n) { save(); changed(); }
+    return n;
+  }
+
+  /** Archive rows of a scope. `ids` = those rows; null = every read row of the scope. Returns how many changed. */
+  function archiveScope(scope, ids = null) {
+    const rows = view(items, readState, scope, settings().github.sections, opts());
+    const want = ids ? new Set(ids.map(String)) : null;
+    const n = archive(archState, want ? rows.filter((r) => want.has(r.id)) : rows.filter((r) => !r.unread), now());
+    if (n) { saveArch(); changed(); }
+    return n;
+  }
+
+  /** Archived rows of a scope back to the inbox. `ids` = those rows; null = all of the scope. Returns how many changed. */
+  function restoreScope(scope, ids = null) {
+    const rows = view(items, readState, scope, settings().github.sections, opts(true));
+    const want = ids ? new Set(ids.map(String)) : null;
+    const n = unarchive(archState, want ? rows.filter((r) => want.has(r.id)) : rows);
+    if (n) { saveArch(); changed(); }
     return n;
   }
 
@@ -329,11 +417,13 @@ export function createNotify({ root, run = defaultRun, now = Date.now, config = 
     /** True while the poller sleeps (nobody looking). */
     sleeping: () => sleeping,
     markRead: markScope,
+    archive: archiveScope,
+    restore: restoreScope,
     stop() { stopped = true; clearTimeout(timer); },
-    /** /api/notify, /api/notify/read, /api/notify/refresh. `pid` is the project of the URL; ?scope=all asks for every project. */
+    /** /api/notify, /api/notify/read, /api/notify/refresh, /api/notify/archive, /api/notify/restore. `pid` is the project of the URL; ?scope=all asks for every project. */
     async handle(req, res, url, pid) {
       const p = url.pathname;
-      if (p !== "/api/notify" && p !== "/api/notify/read" && p !== "/api/notify/refresh") return false;
+      if (!["/api/notify", "/api/notify/read", "/api/notify/refresh", "/api/notify/archive", "/api/notify/restore"].includes(p)) return false;
       const scope = url.searchParams.get("scope") === "all" ? "all" : pid;
       if (scope !== "all" && !projectById(scope)) return reply(res, 404, { error: "unknown project" }), true;
       seenAt = now();
@@ -343,7 +433,7 @@ export function createNotify({ root, run = defaultRun, now = Date.now, config = 
         return reply(res, 200, answer(scope)), true;
       }
       if (req.method !== "POST") return reply(res, 405, { error: "method not allowed" }), true;
-      // Local writes only (the read state). The guard already refused foreign origins and cross-site requests; a JSON body is
+      // Local writes only (the read state, the archive). The guard already refused foreign origins and cross-site requests; a JSON body is
       // also required, which a plain HTML form cannot send.
       if (!/^application\/json\b/i.test(String(req.headers["content-type"] || ""))) return reply(res, 415, { error: "application/json required" }), true;
       const body = await readBody(req);
@@ -355,6 +445,14 @@ export function createNotify({ root, run = defaultRun, now = Date.now, config = 
         return reply(res, 200, answer(scope)), true;
       }
       const ids = Array.isArray(body.ids) ? body.ids.filter((x) => /^\d{1,30}$/.test(String(x))).slice(0, 500) : null;
+      if (p === "/api/notify/archive") {
+        if (!ids && body.read !== true) return reply(res, 400, { error: "ids or read required" }), true;
+        return reply(res, 200, { ok: true, changed: archiveScope(scope, body.read === true ? null : ids), ...answer(scope) }), true;
+      }
+      if (p === "/api/notify/restore") {
+        if (!ids && body.all !== true) return reply(res, 400, { error: "ids or all required" }), true;
+        return reply(res, 200, { ok: true, changed: restoreScope(scope, body.all === true ? null : ids), ...answer(scope) }), true;
+      }
       if (!ids && body.all !== true) return reply(res, 400, { error: "ids or all required" }), true;
       const n = body.unread === true && ids ? unreadScope(scope, ids) : markScope(scope, body.all === true ? null : ids);
       return reply(res, 200, { ok: true, changed: n, ...answer(scope) }), true;

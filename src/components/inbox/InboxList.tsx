@@ -10,6 +10,7 @@ import { useInbox } from "./InboxContext";
 import { Icon } from "./IconSprite";
 import { Chip, CountBadge, Led, QPill, Seg } from "./bits";
 import { useProject, useT } from "@/context/ConfigContext";
+import { SelectableList, useSelection } from "./ArchiveUI";
 
 function Item({ n, noDim }: { n: TreeNode; noDim?: boolean }) {
   const { selected, filter, unreadOf } = useInbox();
@@ -21,17 +22,21 @@ function Item({ n, noDim }: { n: TreeNode; noDim?: boolean }) {
   const qn = f && !isReadme(f) ? f.questions.length : 0;
   const dim = !noDim && ((filter === "active" && !isRun(n)) || (filter === "waiting" && !waitingSelf(n)));
   const active = selected === n.key;
+  const sel = useSelection();
+  const pickable = sel.on && !!f;
   const step = a && (a.state === "run" || a.state === "wait") && a.step ? a.step : "";
   return (
     <Link
       href={hrefOf(n.key, base)}
       data-key={n.key}
       aria-current={active ? "page" : undefined}
+      onClick={pickable ? (e) => { e.preventDefault(); sel.toggle(f!.name); } : undefined}
       className={`relative grid w-full min-w-0 gap-1 rounded-lg px-2.5 py-2 text-start transition-colors ${
  active ? "bg-strip" : "hover:bg-gray-100 dark:hover:bg-white/5"
  } ${dim ? "opacity-45" : ""}`}
     >
       <span className="flex min-w-0 items-center gap-2">
+        {pickable && <input type="checkbox" readOnly tabIndex={-1} checked={sel.picked.has(f!.name)} aria-label={titleOf(n)} className="shrink-0" />}
         <Led n={n} />
         <span dir="auto" className={`min-w-0 flex-1 truncate text-theme-sm ${active ? "font-semibold text-gray-900 dark:text-white" : "font-medium text-gray-800 dark:text-gray-200"}`}>
           {titleOf(n)}
@@ -141,6 +146,7 @@ export default function InboxList() {
     ));
   return (
     <div className="flex min-h-0 flex-col">
+      <SelectableList>
       <div className="grid gap-2 border-b border-line p-3 ">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold text-gray-800 dark:text-white/90">{t("inbox.title")}</h1>
@@ -196,6 +202,7 @@ export default function InboxList() {
           </Section>
         )}
       </div>
+      </SelectableList>
     </div>
   );
 }

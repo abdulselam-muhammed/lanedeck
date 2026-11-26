@@ -36,15 +36,27 @@ New in 0.2.0: the Inbox is one list, like a mail inbox, for two kinds of items.
 - **AI agents**: the files your agents write in `.lanedeck/inbox/`.
 - **GitHub notifications**: mentions, replies, review requests, reviews on your PRs, assignments and state changes for the repos linked to your projects.
 
-Items are grouped by day (Today, Yesterday, Earlier this week, Older). Tabs (All, AI agents, GitHub) and filter chips (Unread, Mentions, Replies, Reviews, Assigned, Status) narrow the list. There is an "all projects" Inbox next to each project's own.
+Items are grouped by day (Today, Yesterday, Earlier this week, Older). Tabs (All, AI agents, GitHub) and filter chips (Unread, Mentions, Replies, Reviews, Assigned, Status, Other) narrow the list. There is an "all projects" Inbox next to each project's own.
+
+A GitHub row says what actually happened on the thread ("bob merged #12", "carol requested changes on #8", "alice mentioned you in #3"), read from the latest comment, the issue or PR state and, only when those do not explain the update, its timeline. GitHub's own `reason` field is why you are subscribed (it stays "mention" long after the mention), so it never words a row. Your own actions (you merged, you commented) are never counted as unread and are hidden by default. CI runs, releases, security alerts, invitations and threads you only watch go to the Other section, which is off by default.
 
 - **Read state is local.** Marking an item read only changes lanedeck; nothing changes on GitHub.
 - **Low load.** One server-side poller reads GitHub with conditional requests (a `304 Not Modified` is free) at GitHub's own `X-Poll-Interval`, and only while a lanedeck page is open; open tabs get the result pushed and never poll. `node scripts/sim-notify-load.mjs` shows the cost of one hour.
 - **Missing scope.** Reading notifications needs the `notifications` scope on your `gh` login. If it is missing, the page says so and shows the fix: `gh auth refresh -h github.com -s notifications`.
 - **Browser notifications** are optional and off by default; the browser asks for permission once.
-- **Settings.** Settings, then Notifications: switch GitHub notifications on or off, choose the sections, set the poll interval (30-3600 s) and the browser notifications. The same keys live under `notifications` in the config file.
+- **Archive GitHub notifications (Gmail-style Done).** Hover a row and Archive it, select several, or Archive all read. The archive is local (lanedeck's data folder keeps the thread id and its `updated_at` at archive time); nothing is written to GitHub and it costs no GitHub call. Archived notifications leave the lists and the counts and show under Archived, next to archived agent files, each with Restore (or restore selected / all). A thread that gets new activity after you archived it comes back to the inbox by itself.
+- **Archive.** AI-agent files can be archived, never deleted: Archive moves a file into `<inbox>/.archive/YYYY-MM/` with a small manifest (original path, when, by hand or automatic), and Inbox, then Archived, restores it to the exact original place (if that name is taken meanwhile, it is restored beside it with a suffix, never over it). Archive one file, select several, or archive the read files older than N days. Archived items do not count as unread or in the totals, and the agents never see the folder. Optional automatic archiving is off by default: set `autoArchiveDays` on a project (Settings, then Projects) and, at start and once a day, files last modified more than that many days ago are archived, except any file that still has an unanswered question.
+- **Settings.** Settings, then Notifications: switch GitHub notifications on or off, choose the sections, hide or show your own actions (`hideSelf`), set the poll interval (30-3600 s) and the browser notifications. The same keys live under `notifications` in the config file.
 
 ![lanedeck Inbox](https://raw.githubusercontent.com/abdulselam-muhammed/lanedeck/main/docs/screenshots/inbox.png)
+
+## What's new in 0.2.2
+
+- GitHub notifications now describe what actually happened (merged, closed, reopened, comment, review and so on). Only real @mentions count as mentions, your own actions show as "You..." and are hidden by default, every notification type is handled, and there is a new optional "Other" section.
+- PR board fixes: a merge that happens between two reads, and the first merge, are now shown correctly.
+- Agents page: a detail page per agent, the Branch column is filled, a time window setting (24h, 48h or 7d), and hide or unhide agents (this never touches Claude Code's own files).
+- Inbox Archive is now a fourth tab. Agent files are moved to `.archive`, never deleted, and can be restored to their original path; optional auto-archive is off by default. GitHub notifications can be archived locally, Gmail-style, and return by themselves on new activity.
+- The browser's native dialogs (confirm, alert, prompt) are replaced by in-app dialogs.
 
 ## What's new in 0.2.1
 
@@ -110,7 +122,7 @@ Set `LANEDECK_CONFIG` to use another file (it must exist). Copy [`config.example
 | `tools` | `gh` and `git` paths; `null` = found on `PATH` |
 | `machine` | `wslDistro`, `ciContainer`, `runnerImage` / `runnerName` / `teamName` (regex sources), `localLabel`, `thresholds`, `remoteThresholds`, `machines` (`[{ id, label, sshAlias }]`) |
 | `github` | `org` (for the runners and jobs page), `rateBudgetPerHour` |
-| `projects[]` | `id`, `name`, `repoPath`, `repo` (`owner/name`), `defaultBranch`, `gateCheck`, `inboxDir`, `claudeProjectDir`, `me`, `reviewers[]`, `boardFiles`, `reviewMarkers`, `holds`, `profile` |
+| `projects[]` | `id`, `name`, `repoPath`, `repo` (`owner/name`), `defaultBranch`, `gateCheck`, `inboxDir`, `claudeProjectDir`, `me`, `reviewers[]`, `boardFiles`, `reviewMarkers`, `holds`, `profile`, `autoArchiveDays` |
 | `ui` | `lang` (`en` or `ar`), `dir` (`ltr` or `rtl`), `title`, `brand`, `runnerPrefix` |
 
 Environment overrides: `PORT`, `INBOX_DIR`, `CLAUDE_PROJECT_DIR`.

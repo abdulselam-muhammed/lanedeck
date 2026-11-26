@@ -11,7 +11,8 @@ import { useInbox } from "@/components/inbox/InboxContext";
 import { useConfig, useProject, useT } from "@/context/ConfigContext";
 import { hrefOf, isReadme, parseFile, RawFile, Snapshot, store } from "@/lib/inbox/model";
 import { useNotify } from "@/lib/notify/useNotify";
-import { AgentRow, AllList, GhChecked, GithubTab, InboxTab, InboxTabs, MarkAllButton, tabOf } from "@/components/notify/UnifiedInbox";
+import { AgentRow, AllList, GhChecked, GithubTab, InboxTab, InboxTabs, MarkAllButton, tabFromParams, useGhArchive } from "@/components/notify/UnifiedInbox";
+import { ArchivedPanel } from "@/components/inbox/ArchiveUI";
 
 type ProjFiles = { id: string; name: string; ns: string; files: { name: string; hash: number; title: string; sub: string; at: number }[] };
 
@@ -53,16 +54,16 @@ export default function AllInboxPage() {
   const router = useRouter();
   const params = useSearchParams();
   const { id: current, projects } = useProject();
-  const { markAllRead: markCurrent, unreadOf, files: currentFiles } = useInbox();
+  const { markAllRead: markCurrent, unreadOf, files: currentFiles, toast } = useInbox();
   const gh = useNotify("all");
+  const ghArch = useGhArchive(gh, toast);
   const { data: all, reload } = useAllFiles();
   const [saved, setSaved] = useState<InboxTab | null>(null);
   const [marks, setMarks] = useState(0); // bumps after a mark-all, so the unread dots are read again
-  useEffect(() => setSaved(tabOf(store.get<string>("inboxAll.tab", "all")) ?? "all"), []);
-  const tab: InboxTab = tabOf(params.get("tab")) ?? saved ?? "all";
+  useEffect(() => setSaved(tabFromParams(store.get<string>("inboxAll.tab", "all"), null) ?? "all"), []);
+  const tab: InboxTab = tabFromParams(params.get("tab"), params.get("view")) ?? saved ?? "all";
   const go = (v: InboxTab) => {
-    store.set("inboxAll.tab", v);
-    setSaved(v);
+    if (v !== "archive") { store.set("inboxAll.tab", v); setSaved(v); }
     router.replace(`/notifications?tab=${v}`, { scroll: false });
   };
 
@@ -103,13 +104,15 @@ export default function AllInboxPage() {
   return (
     <div>
       <PageHeader title={t("ntf.all.title")} desc={t("ntf.all.desc")} />
-      <InboxTabs tab={tab} onTab={go} counts={{ agents: agentUnread, github: ghUnread }}>
-        {tab !== "agents" && <GhChecked data={gh.data} onRefresh={gh.refresh} />}
-        <MarkAllButton n={unreadHere} onClick={mark} />
+      <InboxTabs tab={tab} onTab={go} counts={{ agents: agentUnread, github: ghUnread, archived: gh.data?.counts.archived }}>
+        {(tab === "all" || tab === "github") && <GhChecked data={gh.data} onRefresh={gh.refresh} />}
+        {tab !== "archive" && <MarkAllButton n={unreadHere} onClick={mark} />}
       </InboxTabs>
-      {tab === "all" && <AllList agents={agentRows} gh={gh.data} failed={gh.failed} onRead={gh.markRead} onUnread={gh.markUnread} />}
+      {tab === "all" && <AllList agents={agentRows} gh={gh.data} failed={gh.failed} onRead={gh.markRead} onUnread={gh.markUnread} arch={ghArch} />}
       {tab === "agents" && <AllList agents={agentRows} gh={null} onRead={gh.markRead} onUnread={gh.markUnread} empty={all ? t("ntf.all.noFiles") : t("inbox.connecting")} />}
-      {tab === "github" && <GithubTab data={gh.data} failed={gh.failed} onRead={gh.markRead} onUnread={gh.markUnread} />}
+      {tab === "github" && <GithubTab data={gh.data} failed={gh.failed} onRead={gh.markRead} onUnread={gh.markUnread} arch={ghArch} />}
+      {/* Agent files are archived per project (each project's Inbox); this page archives GitHub notifications of every project. */}
+      {tab === "archive" && <ArchivedPanel ghScope="all" agents={false} />}
     </div>
   );
 }

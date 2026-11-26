@@ -3,10 +3,13 @@
 // the avatar). No React and no I/O here: tests/notify-list.test.mjs drives it.
 
 /** The chips above the GitHub list, in order. "reviews" covers both a requested review and a review on your PR. */
-export const CHIPS = ["all", "unread", "mentions", "replies", "reviews", "assigned", "status"];
+export const CHIPS = ["all", "unread", "mentions", "replies", "reviews", "assigned", "status", "other"];
 
-/** The chip of a server section (server/notify/logic.mjs SECTIONS). */
-const CHIP_OF = { mentions: "mentions", replies: "replies", review: "reviews", reviews: "reviews", assigned: "assigned", state: "status" };
+/**
+ * The chip of a server section (server/notify/logic.mjs SECTIONS). The server puts a row in the section of what actually
+ * happened (server/notify/events.mjs), so the chips filter by the event, never by GitHub's sticky `reason`.
+ */
+const CHIP_OF = { mentions: "mentions", replies: "replies", review: "reviews", reviews: "reviews", assigned: "assigned", state: "status", other: "other" };
 export const chipOfSection = (section) => CHIP_OF[section] ?? null;
 
 /** Whether a row shows under a chip. */
@@ -61,11 +64,20 @@ export function groupByDay(rows, now = Date.now()) {
   return DAYS.filter((d) => by.get(d).length).map((d) => ({ day: d, rows: by.get(d) }));
 }
 
+/** Every row kind (= server/notify/events.mjs EVENTS): each has a sentence, a self sentence, a label and a badge. */
+export const KINDS = [
+  "mention", "comment", "review_requested", "approved", "changes_requested", "reviewed", "assigned",
+  "merged", "closed", "reopened", "opened", "ready", "pushed",
+  "release", "ci_failed", "ci_passed", "ci", "security", "invitation", "advisory", "approval", "activity",
+];
+const KNOWN = new Set(KINDS);
+
 /**
- * What happened, as a row kind: the sentence ("ntf.kind.<kind>") and the badge icon on the avatar follow it.
- * mention, comment, review_requested, approved, changes_requested, reviewed, assigned, merged, closed, reopened.
+ * What happened, as a row kind: the sentence ("ntf.kind.<kind>", or "ntf.self.<kind>" for your own action) and the badge
+ * on the avatar follow it. It is the server's derived event; a row from an older server (no event) falls back to its section.
  */
 export function kindOf(item) {
+  if (item.event) return KNOWN.has(item.event) ? item.event : "activity";
   switch (item.section) {
     case "mentions": return "mention";
     case "review": return "review_requested";
@@ -88,8 +100,23 @@ const BADGE = {
   merged: ["git-merge", "merged"],
   closed: ["x", "error"],
   reopened: ["circle-dot", "success"],
+  opened: ["circle-dot", "brand"],
+  ready: ["git-pull-request", "success"],
+  pushed: ["refresh", "gray"],
+  release: ["sparkles", "brand"],
+  ci_failed: ["x", "error"],
+  ci_passed: ["check", "success"],
+  ci: ["activity", "gray"],
+  security: ["alert", "error"],
+  invitation: ["user-plus", "brand"],
+  advisory: ["alert", "warning"],
+  approval: ["hourglass", "warning"],
+  activity: ["activity", "gray"],
 };
-export const badgeOf = (kind) => BADGE[kind] ?? BADGE.comment;
+export const badgeOf = (kind) => BADGE[kind] ?? BADGE.activity;
+
+/** The reference in a row's sentence: #12 for an issue or PR, a commit's short sha or a release's name, else null (the type). */
+export const refText = (item) => (item.number != null ? `#${item.number}` : item.ref || null);
 
 /** One or two letters for an avatar that has no picture. */
 export function initials(login) {
@@ -98,3 +125,15 @@ export function initials(login) {
   if (parts.length > 1) return (parts[0][0] + parts[1][0]).toUpperCase();
   return (s.slice(0, 2) || "?").toUpperCase();
 }
+
+/** The top-level Inbox tabs, in order. Archive is last: it holds archived agent files and archived GitHub notifications. */
+export const INBOX_TABS = ["all", "agents", "github", "archive"];
+
+/** The tab named by ?tab= (and the old ?view=archive link, which is the Archive tab now); null when neither names one. */
+export function tabFromParams(tab, view) {
+  if (view === "archive") return "archive";
+  return INBOX_TABS.includes(tab) ? tab : null;
+}
+
+/** The Archive tab's count: archived agent files (null while unknown) plus archived GitHub notifications. Never part of All's count. */
+export const archiveTotal = (files, gh) => (files == null ? null : files + (gh || 0));

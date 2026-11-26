@@ -14,6 +14,7 @@ const FALLBACK: PublicConfig = {
   github: { org: null },
   machine: { wslDistro: null, ciContainer: null, localLabel: "This PC (WSL)" },
   ui: { lang: "en", dir: "ltr", title: "lanedeck", brand: null, runnerPrefix: null },
+  agents: { windowHours: 48 },
   profile: null,
 };
 const Ctx = createContext<PublicConfig>(FALLBACK);

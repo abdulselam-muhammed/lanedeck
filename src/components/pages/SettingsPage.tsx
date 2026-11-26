@@ -11,6 +11,7 @@ import { useConfig, useT } from "@/context/ConfigContext";
 import { GH_SECTIONS } from "@/lib/notify/useNotify";
 import { useTheme } from "@/context/ThemeContext";
 import { Modal } from "@/components/ui/modal";
+import { useConfirm } from "@/components/ui/dialog/DialogProvider";
 import { SetupDialog } from "@/components/setup/Setup";
 import { setupApi } from "@/lib/setup";
 import {
@@ -194,9 +195,13 @@ export default function SettingsPage() {
             </Field>
             <Field label={t("pageTitle")} hint={t("help.title")} err={err?.key === "ui.title" ? err.message : null}><Txt value={draft.ui.title} onChange={(v) => set((d) => { d.ui.title = v; })} /></Field>
             <ThemeField label={t("theme")} hint={t("themeHint")} />
+            <Field label={t("agentsWindow")} hint={t("help.agentsWindow")} err={err?.key === "agents.windowHours" ? err.message : null}>
+              <Select value={String(draft.agents?.windowHours ?? 48)} onChange={(v) => set((d) => { d.agents = { windowHours: Number(v) as 24 | 48 | 168 }; })}
+                options={[["24", t("win24")], ["48", t("win48")], ["168", t("win168")]]} />
+            </Field>
           </div>
-          <Foot tb="general" changed={dirty(draft.ui, saved.ui)} onReset={() => set((d) => { d.ui = clone(saved.ui); })}
-            onSave={() => save("general", (base, d) => { base.ui = { ...base.ui, lang: d.ui.lang, dir: d.ui.dir, title: d.ui.title }; return base; })} />
+          <Foot tb="general" changed={dirty(draft.ui, saved.ui) || dirty(draft.agents, saved.agents)} onReset={() => set((d) => { d.ui = clone(saved.ui); d.agents = clone(saved.agents ?? { windowHours: 48 }); })}
+            onSave={() => save("general", (base, d) => { base.ui = { ...base.ui, lang: d.ui.lang, dir: d.ui.dir, title: d.ui.title }; base.agents = { ...base.agents, windowHours: d.agents?.windowHours ?? 48 }; return base; })} />
         </Card>
       )}
       {tab === "general" && <AccessToken t={t} csrf={csrf} token={token} hosts={saved.server.allowedHosts} onRotated={(v) => { setToken(v); toast(t("tok.rotated"), "", "done"); }} />}
@@ -326,6 +331,9 @@ function NotificationsTab({ t, value, set, errKey, errMsg, foot }: {
           <span className="text-theme-xs text-muted">{t("ntf.sectionsHelp")}</span>
           {keyErr("notifications.github.sections") && <span className="text-theme-xs text-error-600 dark:text-error-400">{keyErr("notifications.github.sections")}</span>}
         </fieldset>
+        <Field label={t("ntf.hideSelf")} hint={t("ntf.hideSelfHelp")} err={keyErr("notifications.github.hideSelf")}>
+          <span><OnOff on={g.hideSelf !== false} label={t("ntf.hideSelf")} onChange={(v) => set((n) => { n.github.hideSelf = v; })} /></span>
+        </Field>
         <div className="sm:max-w-xs">
           <Field label={t("ntf.poll")} hint={t("ntf.pollHelp")}
             err={keyErr("notifications.github.pollSeconds") ?? (outOfRange(g.pollSeconds, 30, 3600) ? t("val.range", { min: 30, max: 3600 }) : null)}>
@@ -360,8 +368,9 @@ function AccessToken({ t, csrf, token, hosts, onRotated }: {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const confirm = useConfirm();
   const rotate = async () => {
-    if (token && !window.confirm(t("tok.confirm"))) return;
+    if (token && !(await confirm({ title: t("tok.confirmTitle"), body: t("tok.confirm"), confirmLabel: t("tok.confirmDo"), tone: "danger", icon: "refresh" }))) return;
     setBusy(true); setErr(null);
     try { onRotated((await api.rotateToken(csrf)).accessToken); setShown(true); }
     catch (e) { setErr(e instanceof Error ? e.message : t("unreachable")); }
@@ -531,6 +540,20 @@ function AddDevice({ t, csrf, open, onClose, onAdd, taken }: {
   );
 }
 
+/** Off / 7 / 14 / 30 days / a custom number of days (projects[].autoArchiveDays: null or a whole number). */
+function AutoArchive({ t, value, onChange }: { t: (k: TextKey) => string; value: number | null; onChange: (v: number | null) => void }) {
+  const preset = value == null ? "off" : [7, 14, 30].includes(value) ? String(value) : "custom";
+  const [custom, setCustom] = useState(preset === "custom");
+  const sel = custom ? "custom" : preset;
+  return (
+    <span className="grid gap-1.5">
+      <Select<string> value={sel} onChange={(v) => { if (v === "custom") { setCustom(true); onChange(value ?? 60); } else { setCustom(false); onChange(v === "off" ? null : Number(v)); } }}
+        options={[["off", t("autoArchive.off")], ["7", t("autoArchive.d7")], ["14", t("autoArchive.d14")], ["30", t("autoArchive.d30")], ["custom", t("autoArchive.custom")]]} />
+      {sel === "custom" && <Num value={value ?? undefined} min={1} max={3650} unit={t("autoArchive.days")} onChange={(v) => onChange(Number.isFinite(v) ? Math.round(v) : null)} />}
+    </span>
+  );
+}
+
 const emptyProject = (id: string): ProjectCfg => ({
   id, name: id, repoPath: null, repo: null, defaultBranch: "main", gateCheck: null, inboxDir: null, claudeProjectDir: null, me: null,
   reviewers: [], reviewMarkers: { fail: ["CHANGES REQUESTED", "NOT PASS"], ask: ["what is missing", "\\bFIX\\b"], pass: ["^\\W*(APPROVE[DS]?|LGTM)"] }, boardFiles: [], holds: {}, profile: null, languages: null,
@@ -597,6 +620,9 @@ function ProjectForm({ t, p, k, errKey, errMsg, onChange, detected }: {
       <Field label={t("prj.profile")} hint={t("help.profile")} err={e("profile")}><Txt mono value={p.profile} onChange={(v) => onChange((x) => { x.profile = orNull(v); })} /></Field>
       <Field label={t("prj.languages")} hint={t("help.languages")} err={e("languages")}>
         <Txt mono placeholder="en" value={(p.languages ?? []).join(", ")} onChange={(v) => onChange((x) => { const l = v.split(/[\s,]+/).map((y) => y.trim().toLowerCase()).filter(Boolean); x.languages = l.length ? (l as ("en" | "ar")[]) : null; })} />
+      </Field>
+      <Field label={t("prj.autoArchive")} hint={t("help.autoArchive")} err={e("autoArchiveDays")}>
+        <AutoArchive t={t} value={p.autoArchiveDays ?? null} onChange={(v) => onChange((x) => { x.autoArchiveDays = v; })} />
       </Field>
       {detected && detected.checks.length > 0 && (
         <Field label={t("prj.checks")}><span className="mono text-theme-xs text-muted" dir="ltr">{detected.checks.join(" · ")}</span></Field>

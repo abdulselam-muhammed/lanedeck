@@ -534,6 +534,11 @@ html { scrollbar-gutter: stable; }
   .btn-solid { color: #fff; background: linear-gradient(to bottom, var(--color-brand-500), var(--color-brand-600)); border-color: var(--color-brand-700); box-shadow: inset 0 1px 0 rgb(255 255 255 / .22); }
   .dark .btn-solid { color: var(--color-gray-950); background: linear-gradient(to bottom, var(--color-brand-300), var(--color-brand-400)); border-color: var(--color-brand-500); box-shadow: inset 0 1px 0 rgb(255 255 255 / .35); }
   .btn-solid:hover:not(:disabled) { filter: brightness(1.06); }
+  .btn-danger { color: #fff; background: linear-gradient(to bottom, var(--color-error-500), var(--color-error-600)); border-color: var(--color-error-700); box-shadow: inset 0 1px 0 rgb(255 255 255 / .2); }
+  .dark .btn-danger { background: linear-gradient(to bottom, var(--color-error-400), var(--color-error-500)); border-color: var(--color-error-600); }
+  .btn-danger:hover:not(:disabled) { filter: brightness(1.07); }
+  .btn-danger:focus-visible { box-shadow: 0 0 0 2px var(--color-white), 0 0 0 4px color-mix(in srgb, var(--color-error-500) 60%, transparent); }
+  .dark .btn-danger:focus-visible { box-shadow: 0 0 0 2px var(--color-gray-900), 0 0 0 4px color-mix(in srgb, var(--color-error-400) 60%, transparent); }
   .btn-ghost { color: var(--color-gray-700); background: transparent; border-color: var(--color-line, var(--color-gray-200)); }
   .dark .btn-ghost { color: var(--color-gray-200); }
   .btn-ghost:hover:not(:disabled) { background: color-mix(in srgb, currentColor 7%, transparent); }

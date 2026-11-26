@@ -7,6 +7,7 @@ export interface PublicConfig {
   github: { org: string | null };
   machine: { wslDistro: string | null; ciContainer: string | null; localLabel: string };
   ui: { lang: "ar" | "en"; dir: "rtl" | "ltr"; title: string; brand: string | null; runnerPrefix: string | null };
+  agents: { windowHours: 24 | 48 | 168 };
   profile: Record<string, any> | null;
 }
 export function publicConfig(): PublicConfig;

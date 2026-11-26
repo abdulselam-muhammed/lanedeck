@@ -2,6 +2,7 @@
 // The live box of a file/agent (moved from the old liveHtml): crumbs to the parent, the file bar,
 // the agent card, its progress estimate and last actions, and its subagents.
 import React, { useRef, useState } from "react";
+import Link from "next/link";
 import { Agent, byActivity, isReadme, Progress, titleOf, TreeNode, whenOf } from "@/lib/inbox/model";
 import { RelTime } from "@/components/common/RelTime";
 import { useInbox } from "./InboxContext";
@@ -214,16 +215,14 @@ export function Acts({ a }: { a: Agent }) {
   );
 }
 
-export function SubCard({ n }: { n: TreeNode }) {
+export function SubCard({ n, hrefOf }: { n: TreeNode; hrefOf?: (n: TreeNode) => string | null }) {
   const { select } = useInbox();
   const a = n.agent;
   const line = a && a.step ? a.step : n.file ? n.file.statusText : "";
-  return (
-    <button
-      type="button"
-      onClick={() => select(n.key)}
-      className="flex w-full items-center gap-2 border-b border-line px-3 py-1.5 text-start last:border-b-0 hover:bg-gray-50 dark:hover:bg-white/[0.03]"
-    >
+  const href = hrefOf?.(n) ?? null;
+  const cls = "flex w-full items-center gap-2 border-b border-line px-3 py-1.5 text-start last:border-b-0 hover:bg-gray-50 dark:hover:bg-white/[0.03]";
+  const body = (
+    <>
       <Led n={n} />
       <span className="grid min-w-0 flex-1">
         <b dir="auto" className="truncate text-theme-sm font-medium text-gray-800 dark:text-white/90">
@@ -236,7 +235,12 @@ export function SubCard({ n }: { n: TreeNode }) {
       <Chip n={n} />
       {n.file && n.file.questions.length > 0 && <QPill n={n.file.questions.length} />}
       <span className="whitespace-nowrap text-[11.5px] text-gray-500 tnum"><RelTime at={whenOf(n)} /></span>
-    </button>
+    </>
+  );
+  return href ? (
+    <Link href={href} className={cls}>{body}</Link>
+  ) : (
+    <button type="button" onClick={() => select(n.key)} className={cls}>{body}</button>
   );
 }
 
@@ -259,7 +263,7 @@ function SideBlock({ title, icon, children, count }: { title: string; icon: stri
  * the agent's details (state, model, type, step, started, last activity, branch, id), its last actions,
  * and its subagents. A file with no live agent shows the file's own details.
  */
-export default function AgentSide({ n }: { n: TreeNode }) {
+export default function AgentSide({ n, subHref }: { n: TreeNode; subHref?: (n: TreeNode) => string | null }) {
   const t = useT();
   const a = n.agent;
   const kids = [...n.children].sort(byActivity);
@@ -318,7 +322,7 @@ export default function AgentSide({ n }: { n: TreeNode }) {
         <SideBlock title={t("inbox.live.subagents")} icon="git-fork" count={kids.length}>
           <div className="overflow-hidden rounded-xl border border-line">
             {kids.map((k) => (
-              <SubCard key={k.key} n={k} />
+              <SubCard key={k.key} n={k} hrefOf={subHref} />
             ))}
           </div>
         </SideBlock>

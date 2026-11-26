@@ -108,7 +108,7 @@ export function makeBoard(P) {
     if (pushed && Date.parse(last.at) <= Date.parse(pushed)) return null;
     if (PASS_RE.test(last.body)) return null; // a pass is not a request
     const mentionsMe = MENTION_RE.test(last.body);
-    const mine = x.author?.login === ME;
+    const mine = !!ME && String(x.author?.login || '').toLowerCase() === ME.toLowerCase(); // `me` is typed in the config: any case
     // A comment that @-mentions only someone else never lands on us; a PR of someone else needs the mention.
     if (!mentionsMe && (!mine || /@[\w-]+/.test(last.body))) return null;
     const d = last.at.slice(5, 10);
@@ -175,6 +175,7 @@ export function makeBoard(P) {
       try { for (const [k, v] of Object.entries(JSON.parse(fs.readFileSync(this.conflictsFile, 'utf8')))) this.conflicts.set(Number(k), v); } catch { /* none yet */ }
       this.prs = null; // Map number -> pr
       this.merged = [];
+      this.gone = new Map(); // number -> { title, misses }: left the open list, not (yet) seen in the merged list
       this.tip = null;
       this.me = null;
       this.rl = null;
@@ -300,12 +301,25 @@ export function makeBoard(P) {
         const d = await graphql(MERGED_Q, { q: `repo:${REPO} is:pr is:merged merged:>=${since} sort:updated-desc` });
         const merged = d.search.nodes.filter((x) => x && x.number).map((x) => ({ number: x.number, title: x.title, url: x.url, author: x.author?.login || '?', at: x.mergedAt, by: x.mergedBy?.login || '?', sha: x.mergeCommit?.oid?.slice(0, 9) || '' }))
           .sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
-        const known = new Set(this.merged.map((m) => m.number));
-        if (this.merged.length) for (const m of merged) if (!known.has(m.number)) this.pushEvent({ k: 'merged', n: m.number, title: m.title, by: m.by, author: m.author });
-        this.merged = merged;
-        this.mergedAt = Date.now();
+        this.applyMerged(merged);
         this.rebuild();
       } catch (e) { this.error = String(e.message || e); this.rebuild(); }
+    }
+
+    /** A fresh merged list: the "merged" events, and the verdict on the PRs that left the open list. */
+    applyMerged(merged) {
+      const known = new Set(this.merged.map((m) => m.number));
+      // After the first read (even an empty one), every newly merged PR is an event.
+      if (this.mergedAt) for (const m of merged) if (!known.has(m.number)) this.pushEvent({ k: 'merged', n: m.number, title: m.title, by: m.by, author: m.author });
+      // A PR that left the open list is "closed without merging" only once the merged list (read on its own, slower cadence,
+      // from the search index, which lags) has missed it twice; a merged one is announced above as merged, never as closed.
+      const isMerged = new Set(merged.map((m) => m.number));
+      for (const [n, g] of this.gone) {
+        if (isMerged.has(n)) { this.gone.delete(n); continue; }
+        if (++g.misses >= 2) { this.gone.delete(n); this.pushEvent({ k: 'closed', n, title: g.title }); }
+      }
+      this.merged = merged;
+      this.mergedAt = Date.now();
     }
 
     async readOpen() {
@@ -390,7 +404,9 @@ export function makeBoard(P) {
         if (o.review !== p.review && p.review === 'APPROVED') this.pushEvent({ k: 'approved', n, title: p.title });
         if (o.review !== p.review && p.review === 'CHANGES_REQUESTED') this.pushEvent({ k: 'changes', n, title: p.title });
       }
-      for (const [n, o] of prev) if (!next.has(n) && !this.merged.some((m) => m.number === n)) this.pushEvent({ k: 'closed', n, title: o.title });
+      // Gone from the open list: merged or closed? The merged read decides (readMerged), so a merge is never shown as a close.
+      for (const [n, o] of prev) if (!next.has(n) && !this.merged.some((m) => m.number === n) && !this.gone.has(n)) this.gone.set(n, { title: o.title, misses: 0 });
+      for (const n of next.keys()) this.gone.delete(n); // reopened
     }
 
     /** Conflict files, measured locally for every CONFLICTING PR whose head (or base tip) moved since the last measure. */

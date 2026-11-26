@@ -8,6 +8,7 @@ import { ThemeProvider, themeBootScript } from "@/context/ThemeContext";
 import IconSprite from "@/components/inbox/IconSprite";
 import { ProjectInboxProvider } from "@/components/inbox/InboxContext";
 import AppShell from "@/layout/AppShell";
+import { DialogProvider } from "@/components/ui/dialog/DialogProvider";
 import { ConfigProvider } from "@/context/ConfigContext";
 import { publicConfig } from "../../server/config.mjs";
 import { markOf } from "@/lib/mark";
@@ -47,7 +48,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           <ThemeProvider>
             <SidebarProvider>
               <ProjectInboxProvider>
-                <AppShell>{children}</AppShell>
+                <DialogProvider>
+                  <AppShell>{children}</AppShell>
+                </DialogProvider>
               </ProjectInboxProvider>
             </SidebarProvider>
           </ThemeProvider>

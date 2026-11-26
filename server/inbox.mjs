@@ -21,6 +21,9 @@ import { protocolDirName, protocolDir, readProtocol, questionsOf } from "./proto
 import { archiveSetup } from "./setup.mjs";
 import { readPlainAsync, realRoot, unsafeReason } from "./safepath.mjs";
 import { cachedGet } from "./ghcache.mjs";
+import { autoArchive } from "./archive.mjs";
+import { agentBranch } from "./agentbranch.mjs";
+import { hiddenIds } from "./hiddenagents.mjs";
 
 /** Agents touched within this window are listed. */
 const WINDOW_MS = 12 * 3600e3;
@@ -352,7 +355,7 @@ async function readAgent(path, session) {
     type: meta.agentType ?? null,
     parent: meta.parentAgentId ?? null,
     depth: meta.spawnDepth ?? 1,
-    branch: meta.worktreeBranch ?? null,
+    branch: await agentBranch(meta, rows),
     startedAt,
     lastAt: info.mtimeMs,
     handedBack,
@@ -535,10 +538,10 @@ const hashOf = (x) => createHash("sha1").update(JSON.stringify(x)).digest("hex")
 // ---------- every project's agents, for the machine pages ----------
 // ~/.claude/projects/* : each directory is one Claude Code project. An agent is tagged with the configured project whose
 // claudeProjectDir is that directory, or "other". Bounded: the last 48 h and at most AGENTS_CAP agents per directory.
-const ALL_WINDOW_MS = 48 * 3600e3;
+const allWindowMs = () => getConfig().agents.windowHours * 3600e3;
 const AGENTS_CAP = 60;
 const normDir = (p) => String(p ?? "").replace(/[\\/]+$/, "").replace(/\\/g, "/").toLowerCase();
-let allCache = null; // { at, value }
+let allCache = null; // { at, hours, value }
 let allBusy = null;
 async function computeAllAgents() {
   const root = join(homedir(), ".claude", "projects");
@@ -550,7 +553,7 @@ async function computeAllAgents() {
   for (const d of dirs) {
     const full = join(root, d);
     const id = byDir.get(normDir(full)) ?? null;
-    const list = await liveAgents(full, { windowMs: ALL_WINDOW_MS, cap: AGENTS_CAP });
+    const list = await liveAgents(full, { windowMs: allWindowMs(), cap: AGENTS_CAP });
     if (!list.length) continue;
     // A configured project with a running inbox gives its plans (checklists), so the bar matches that project's page.
     const files = id && instances.has(id) ? instances.get(id).files() : [];
@@ -561,9 +564,11 @@ async function computeAllAgents() {
 }
 /** GET /api/agents: every project's agents (cached 3 s so several pages polling share one scan). */
 export async function allAgents() {
-  if (allCache && Date.now() - allCache.at < 3000) return allCache.value;
-  allBusy ??= computeAllAgents().then((value) => { allCache = { at: Date.now(), value: { ...value, now: Date.now() } }; return allCache.value; }).finally(() => { allBusy = null; });
-  return allBusy;
+  const hours = getConfig().agents.windowHours;
+  const hidden = () => hiddenIds(); // read each time: hiding is instant, the scan is cached
+  if (allCache && allCache.hours === hours && Date.now() - allCache.at < 3000) return { ...allCache.value, hidden: hidden() };
+  allBusy ??= computeAllAgents().then((value) => { allCache = { at: Date.now(), hours, value: { ...value, now: Date.now(), windowHours: hours } }; return allCache.value; }).finally(() => { allBusy = null; });
+  return { ...(await allBusy), hidden: hidden() };
 }
 
 const QID = /^##\s+[A-Z]{1,8}\d{1,3}\b/;
@@ -690,6 +695,23 @@ function createInbox(P) {
     sendAll("snapshot", { ...rest, now: Date.now() });
   }, 15000));
   refresh().catch(() => {});
+  // Auto-archive (off unless the project sets autoArchiveDays): once shortly after start, then once a day. The setting is read
+  // live, so a change in Settings applies at the next run. server/archive.mjs holds the rule.
+  const archiveCtx = () => {
+    syncMode();
+    return { inboxDir: INBOX, repoPath: PDIR && !P.inboxExplicit ? P.repoPath : null, proto: !!PDIR };
+  };
+  const sweep = () => {
+    const days = projectById(P.id)?.autoArchiveDays;
+    if (!days || disposed) return;
+    try { if (autoArchive(archiveCtx(), days).archived.length) broadcast(); } catch (e) { if (e?.code !== "ENOENT") console.error("auto-archive", P.id, e.message); }
+  };
+  const sweepStart = setTimeout(sweep, 15000);
+  sweepStart.unref?.();
+  timers.push(sweepStart);
+  const sweepDaily = setInterval(sweep, 24 * 3600e3);
+  sweepDaily.unref?.();
+  timers.push(sweepDaily);
   timers.push(setInterval(() => sendAll("ping", { t: Date.now() }), 20000));
 
   // ---------- default-branch watch: our last pull of origin/<branch> vs the branch on GitHub now ----------
@@ -796,6 +818,7 @@ function createInbox(P) {
     INBOX,
     PROJECT,
     publish,
+    archiveCtx,
     sendEvent: sendAll,
     quickSnapshot,
     /** Read the project folder again now (after the setup wrote into it). */

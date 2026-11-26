@@ -2,40 +2,16 @@
 // notification (and what we learned about it) becomes a row, and the local read state. No I/O here; tests/notify.test.mjs
 // drives it with fixtures shaped like `gh api notifications`.
 
-/** Every section of the GitHub tab, in the order the page shows them. */
-export const SECTIONS = ["mentions", "replies", "review", "reviews", "assigned", "state"];
+/** Every section of the GitHub tab, in the order the page shows them. "other" (CI, releases, security, watched threads) is off by default. */
+export const SECTIONS = ["mentions", "replies", "review", "reviews", "assigned", "state", "other"];
+export const DEFAULT_SECTIONS = SECTIONS.filter((s) => s !== "other");
 
 /**
- * The section from GitHub's `reason` alone; `null` = not shown (CI activity, security alerts, invitations, threads you only
- * watch). "author" / "manual" are refined by `sectionOf` once the latest activity is known.
+ * The section a thread shows in while nothing has been read about it yet (the first polls of a busy inbox): a best guess
+ * from GitHub's `reason`, replaced by the section of the real event (server/notify/events.mjs) as soon as it is read.
  */
-const BY_REASON = {
-  mention: "mentions",
-  team_mention: "mentions",
-  comment: "replies",
-  author: "replies",
-  manual: "replies",
-  review_requested: "review",
-  approval_requested: "review",
-  assign: "assigned",
-  state_change: "state",
-};
-export const sectionOfReason = (reason) => BY_REASON[reason] ?? null;
-
-/**
- * The section of one notification. `detail` (optional) is what the enrichment learned: { review: { state } } when the latest
- * activity is a review, { state: "open" | "closed" | "merged", commented: boolean } for the subject.
- *   - a review on one of your PRs (reason author, the latest activity is someone's review) -> "reviews";
- *   - your issue or PR was closed or merged with no newer comment -> "state";
- *   - otherwise the reason decides.
- */
-export function sectionOf(n, detail = null) {
-  const base = sectionOfReason(n?.reason);
-  if (!base) return null;
-  if (n.reason === "author" && n.subject?.type === "PullRequest" && detail?.review) return "reviews";
-  if (base === "replies" && n.reason !== "comment" && detail && !detail.commented && (detail.state === "closed" || detail.state === "merged")) return "state";
-  return base;
-}
+const GUESS = { mention: "mentions", team_mention: "mentions", comment: "replies", author: "replies", manual: "replies", review_requested: "review", approval_requested: "review", assign: "assigned", state_change: "state" };
+export const guessSection = (reason) => GUESS[reason] ?? "other";
 
 /** The linked repos (owner/name, lower case) -> the ids of the projects linked to each. */
 export function repoIndex(projects) {
@@ -84,9 +60,11 @@ export const safeLink = (u) => (/^https:\/\/github\.com\//.test(String(u || ""))
 export const safeAvatar = (u) => (/^https:\/\/avatars\.githubusercontent\.com\/[\w./?=&%-]+$/.test(String(u || "")) ? String(u) : null);
 
 /**
- * One row of the Inbox from a notification and its detail.
- *   detail: { actor, avatar, body, url, review: { state } | null, state, commented } (every field optional)
- * -> { id, repo, projects, section, reason, type, number, title, url, actor, avatar, excerpt, review, state, at, ghUnread }
+ * One row of the Inbox from a notification and what was derived about it (server/notify/events.mjs deriveEvent, or null
+ * while nothing has been read yet).
+ *   detail: { event, actor, avatar, self, body, url, review, state, section, ref } (every field optional)
+ * -> { id, repo, projects, section, event, self, resolved, reason, type, number, ref, title, url, actor, avatar, excerpt,
+ *      review, state, at, ghUnread }
  */
 export function toItem(n, detail, index) {
   const repo = n.repository?.full_name || "";
@@ -95,16 +73,20 @@ export function toItem(n, detail, index) {
     id: String(n.id),
     repo,
     projects: index.get(repo.toLowerCase()) || [],
-    section: sectionOf(n, detail),
-    reason: n.reason,
-    type: n.subject?.type || "Issue",
+    section: d.section || guessSection(n.reason),
+    event: d.event || "activity",
+    self: !!d.self,
+    resolved: !!detail,
+    reason: String(n.reason || ""),
+    type: String(n.subject?.type || "Issue"),
     number: numberOf(n.subject?.url),
+    ref: d.ref ? String(d.ref).slice(0, 80) : null,
     title: String(n.subject?.title || "").slice(0, 300),
     url: safeLink(d.url) || safeLink(htmlOf(n.subject?.url, n.repository?.html_url)),
     actor: d.actor || null,
     avatar: d.actor ? safeAvatar(d.avatar) : null,
     excerpt: d.body ? excerpt(d.body) : "",
-    review: d.review?.state ? String(d.review.state).toLowerCase() : null,
+    review: d.review ? String(d.review).toLowerCase() : null,
     state: d.state || null,
     at: n.updated_at,
     ghUnread: !!n.unread,
@@ -117,7 +99,9 @@ export function toItem(n, detail, index) {
 
 export const emptyRead = () => ({ v: 1, seeded: false, read: {} });
 
+/** Your own action (you merged, you commented) is never unread: there is nothing new in it for you. */
 export const isUnread = (state, item) => {
+  if (item.self) return false;
   const r = state.read[item.id];
   return !r || Date.parse(r) < Date.parse(item.at);
 };
@@ -172,12 +156,81 @@ export function parseRead(text) {
   }
 }
 
-/** Rows of one scope ("all" or a project id), in the shown sections, newest first, each with its local `unread`. */
-export function view(items, state, scope, sections) {
+// ---------- the local archive (data/notify/archive.json) ----------
+// { v: 1, threads: { "<thread id>": { at: "<updated_at when it was archived>", on: "<when it was archived>" } } }
+// Gmail-style "Archive / Done": nothing is written to GitHub. An archived thread leaves the lists and the counts; when GitHub
+// reports newer activity on it than `at`, it comes back to the inbox by itself (and leaves the archived list).
+
+export const emptyArchive = () => ({ v: 1, threads: {} });
+
+/** Archived, and nothing happened on the thread since. */
+export const isArchived = (arch, item) => {
+  const a = arch?.threads?.[item.id];
+  return !!a && Date.parse(a.at) >= Date.parse(item.at);
+};
+
+/** Archive rows (at their current activity time). Returns the number that changed. */
+export function archive(arch, items, now = Date.now()) {
+  let n = 0;
+  const on = new Date(now).toISOString();
+  for (const it of items) if (!isArchived(arch, it)) { arch.threads[it.id] = { at: it.at, on }; n++; }
+  return n;
+}
+
+/** Restore rows to the inbox (forget the archive entry). Returns the number that changed. */
+export function unarchive(arch, items) {
+  let n = 0;
+  for (const it of items) if (arch.threads[it.id]) { delete arch.threads[it.id]; n++; }
+  return n;
+}
+
+/** Threads with newer activity than when they were archived come back: their entries are dropped. Returns the ids. */
+export function returned(arch, items) {
+  const back = [];
+  for (const it of items) {
+    const a = arch.threads[it.id];
+    if (a && Date.parse(a.at) < Date.parse(it.at)) { delete arch.threads[it.id]; back.push(it.id); }
+  }
+  return back;
+}
+
+/** Forget archive entries of threads no longer listed that were archived more than `days` ago; at most `max` stay. */
+export function pruneArchive(arch, liveIds, now = Date.now(), days = 30, max = 3000) {
+  const cut = now - days * 864e5;
+  for (const [id, a] of Object.entries(arch.threads)) if (!liveIds.has(id) && Date.parse(a.on) < cut) delete arch.threads[id];
+  const keys = Object.keys(arch.threads);
+  if (keys.length > max) {
+    keys.sort((a, b) => Date.parse(arch.threads[a].on) - Date.parse(arch.threads[b].on));
+    for (const k of keys.slice(0, keys.length - max)) delete arch.threads[k];
+  }
+  return arch;
+}
+
+/** An archive object from whatever the file held (bad or missing -> empty). */
+export function parseArchive(text) {
+  try {
+    const j = JSON.parse(text);
+    if (!j || typeof j !== "object" || typeof j.threads !== "object" || !j.threads || Array.isArray(j.threads)) return emptyArchive();
+    const threads = {};
+    for (const [k, v] of Object.entries(j.threads)) {
+      if (/^\d{1,30}$/.test(k) && v && typeof v.at === "string" && typeof v.on === "string" && !Number.isNaN(Date.parse(v.at)) && !Number.isNaN(Date.parse(v.on))) threads[k] = { at: v.at, on: v.on };
+    }
+    return { v: 1, threads };
+  } catch {
+    return emptyArchive();
+  }
+}
+
+/**
+ * Rows of one scope ("all" or a project id), in the shown sections, newest first, each with its local `unread`.
+ * `hideSelf` drops the rows whose latest event is your own action (they are never unread either way). `arch` is the local
+ * archive: archived rows are left out, or, with `archived: true`, only they are listed (each with its `archivedAt`).
+ */
+export function view(items, state, scope, sections, { hideSelf = false, arch = null, archived = false } = {}) {
   const show = new Set(sections);
   return items
-    .filter((it) => it.section && show.has(it.section) && (scope === "all" || it.projects.includes(scope)))
-    .map((it) => ({ ...it, unread: isUnread(state, it) }))
+    .filter((it) => it.section && show.has(it.section) && (scope === "all" || it.projects.includes(scope)) && !(hideSelf && it.self) && isArchived(arch, it) === archived)
+    .map((it) => (archived ? { ...it, unread: isUnread(state, it), archivedAt: arch.threads[it.id].on } : { ...it, unread: isUnread(state, it) }))
     .sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
 }
 

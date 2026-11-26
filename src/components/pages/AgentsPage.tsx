@@ -10,9 +10,11 @@ import { RelTime } from "@/components/common/RelTime";
 import { Icon } from "@/components/inbox/IconSprite";
 import { Card, CardHead, Empty, KpiStrip, PageHeader, Seg } from "@/components/inbox/bits";
 import { useConfig, useT } from "@/context/ConfigContext";
+import { api } from "@/lib/settings";
+import { agentHref } from "@/components/pages/AgentDetailPage";
 
 export type MachineAgent = Agent & { project: string; dir: string };
-type AllAgents = { agents: MachineAgent[]; projects: string[]; now: number };
+type AllAgents = { agents: MachineAgent[]; projects: string[]; now: number; hidden?: string[]; windowHours?: number };
 
 /** Polls /api/agents while the tab is visible. Shared by the agents page and the machine overview. */
 export function useAllAgents(everyMs = 5000) {
@@ -38,7 +40,7 @@ export function useAllAgents(everyMs = 5000) {
   return { data, error };
 }
 
-type Tab = "all" | "active" | "done";
+type Tab = "all" | "active" | "done" | "hidden";
 const STATE_ORDER: Record<string, number> = { run: 0, wait: 1, idle: 2, stopped: 3, done: 4 };
 /** The status pill of each state (globals.css .st-pill): working breathes, waiting is amber, stopped red, done green. */
 const STATE_CLS: Record<string, string> = { run: "is-run pulse", wait: "is-wait", idle: "is-idle", stopped: "is-fail", done: "is-done" };
@@ -59,7 +61,7 @@ function buildForest(list: MachineAgent[]): Node[] {
 }
 const hay = (a: MachineAgent) => [a.name, a.branch, a.id, a.model, a.project, a.step].filter(Boolean).join(" ").toLowerCase();
 const matchDeep = (n: Node, words: string[]): boolean => words.every((w) => hay(n.a).includes(w)) || n.kids.some((k) => matchDeep(k, words));
-const tabDeep = (n: Node, tab: Tab): boolean => (tab === "all" ? true : tab === "active" ? isActive(n.a) : n.a.state === "done") || n.kids.some((k) => tabDeep(k, tab));
+const tabDeep = (n: Node, tab: Tab): boolean => (tab === "all" || tab === "hidden" ? true : tab === "active" ? isActive(n.a) : n.a.state === "done") || n.kids.some((k) => tabDeep(k, tab));
 
 function ProjectTag({ id, names }: { id: string; names: Map<string, string> }) {
   const known = id !== "other";
@@ -72,15 +74,27 @@ function ProjectTag({ id, names }: { id: string; names: Map<string, string> }) {
   );
 }
 
-function Row({ n, depth, names }: { n: Node; depth: number; names: Map<string, string> }) {
+/** Hide/unhide acts on the agent and its subagents together. */
+type Act = { hiddenView: boolean; toggle: (n: Node) => void };
+const subtree = (n: Node): string[] => [n.a.id, ...n.kids.flatMap(subtree)];
+
+function Row({ n, depth, names, act }: { n: Node; depth: number; names: Map<string, string>; act: Act }) {
   const t = useT();
   const [shut, setShut] = useState(false);
   const a = n.a;
   const pct = a.progress && a.progress.source !== "none" ? a.progress.pct : null;
   const td = "px-3 py-1.5 align-middle";
+  const href = agentHref(a);
+  const router = useRouter();
+  // The whole row opens the agent's page; the name is the real link (Enter, middle-click, new tab), the other controls keep their own click.
+  const open = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest("a,button,input,select,textarea") || e.button !== 0 || window.getSelection()?.toString()) return;
+    if (e.ctrlKey || e.metaKey || e.shiftKey) window.open(href, "_blank");
+    else router.push(href);
+  };
   return (
     <>
-      <tr>
+      <tr onClick={open} className="cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.03]">
         <td className="max-w-0 py-1.5 ps-3 pe-3">
           <div className="flex min-w-0 items-center gap-1.5" style={{ paddingInlineStart: depth * 20 }}>
             {n.kids.length > 0 ? (
@@ -92,7 +106,7 @@ function Row({ n, depth, names }: { n: Node; depth: number; names: Map<string, s
               <span className="grid h-6 w-6 shrink-0 place-items-center text-gray-300 dark:text-gray-700" aria-hidden="true"><Icon name="corner" className="s14 -scale-x-100" /></span>
             ) : <span className="w-6 shrink-0" />}
             <span className="grid min-w-0">
-              <b dir="auto" title={a.name} className="truncate text-theme-sm font-medium text-gray-800 dark:text-white/90">{a.name}</b>
+              <Link href={href} dir="auto" title={a.name} aria-label={`${t("pages.agents.open")}: ${a.name}`} className="truncate text-theme-sm font-semibold text-gray-800 hover:underline dark:text-white/90">{a.name}</Link>
               <span dir="ltr" title={a.id} className="truncate text-start text-[11px] text-gray-400 mono dark:text-gray-500">{a.id}</span>
             </span>
           </div>
@@ -112,9 +126,14 @@ function Row({ n, depth, names }: { n: Node; depth: number; names: Map<string, s
           )}
         </td>
         <td className={td + " whitespace-nowrap text-theme-xs text-gray-500 tnum dark:text-gray-400"} data-label={t("pages.agents.colStarted")}><RelTime at={a.startedAt} /></td>
-        <td className={td + " whitespace-nowrap pe-3 text-theme-xs text-gray-500 tnum dark:text-gray-400"} data-label={t("pages.agents.colLast")}><RelTime at={a.lastAt} /></td>
+        <td className={td + " whitespace-nowrap text-theme-xs text-gray-500 tnum dark:text-gray-400"} data-label={t("pages.agents.colLast")}><RelTime at={a.lastAt} /></td>
+        <td className={td + " whitespace-nowrap pe-3 text-end"} data-label={t("pages.agents.colActions")}>
+          <button type="button" onClick={() => act.toggle(n)} title={t("pages.agents.hideNote")} className="rounded-md px-2 py-1 text-theme-xs font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white">
+            {t(act.hiddenView ? "pages.agents.unhide" : "pages.agents.hide")}
+          </button>
+        </td>
       </tr>
-      {!shut && n.kids.map((k) => <Row key={k.a.id} n={k} depth={depth + 1} names={names} />)}
+      {!shut && n.kids.map((k) => <Row key={k.a.id} n={k} depth={depth + 1} names={names} act={act} />)}
     </>
   );
 }
@@ -133,8 +152,24 @@ export default function AgentsPage() {
   const setProject = (p: string) => router.replace(p ? `${pathname}?p=${encodeURIComponent(p)}` : pathname);
   const words = text.trim().toLowerCase().split(/\s+/).filter(Boolean);
 
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [hideErr, setHideErr] = useState(false);
+  useEffect(() => { if (data?.hidden) setHidden(new Set(data.hidden)); }, [data]);
+  /** Hide/unhide: a list kept in lanedeck's data folder (POST /api/agents/hidden, CSRF-protected); Claude Code's files are never touched. */
+  const change = async (action: "hide" | "unhide" | "unhideAll", ids: string[] = []) => {
+    try {
+      const { csrf } = await api.load();
+      const r = await fetch("/api/agents/hidden", { method: "POST", cache: "no-store", headers: { "content-type": "application/json", "x-csrf-token": csrf }, body: JSON.stringify({ action, ids }) });
+      if (!r.ok) throw new Error(String(r.status));
+      setHidden(new Set(((await r.json()) as { hidden: string[] }).hidden));
+      setHideErr(false);
+    } catch { setHideErr(true); }
+  };
   const all = useMemo(() => data?.agents ?? [], [data]);
-  const inProject = useMemo(() => all.filter((a) => !project || a.project === project), [all, project]);
+  const inProject = useMemo(() => all.filter((a) => (!project || a.project === project) && hidden.has(a.id) === (tab === "hidden")), [all, project, hidden, tab]);
+  const hiddenCount = useMemo(() => all.filter((a) => (!project || a.project === project) && hidden.has(a.id)).length, [all, project, hidden]);
+  const finished = inProject.filter((a) => a.state === "done" && tab !== "hidden").map((a) => a.id);
+  const act: Act = { hiddenView: tab === "hidden", toggle: (n) => change(tab === "hidden" ? "unhide" : "hide", subtree(n)) };
   const forest = useMemo(() => buildForest(inProject).filter((n) => tabDeep(n, tab) && matchDeep(n, words)), [inProject, tab, words]);
   const running = inProject.filter((a) => a.state === "run").length;
   const waiting = inProject.filter((a) => a.state === "wait").length;
@@ -145,7 +180,7 @@ export default function AgentsPage() {
 
   return (
     <>
-      <PageHeader crumbs={[{ label: t("pages.agents.crumb") }]} title={t("pages.agents.title")} desc={t("pages.agents.desc")}>
+      <PageHeader crumbs={[{ label: t("pages.agents.crumb") }]} title={t("pages.agents.title")} desc={t("pages.agents.desc", { window: t(`pages.agents.win${data?.windowHours ?? cfg.agents.windowHours ?? 48}`) })}>
         <Seg<Tab>
           label={t("pages.agents.filter")}
           value={tab}
@@ -155,6 +190,7 @@ export default function AgentsPage() {
             { v: "all", label: t("pages.agents.all") },
             { v: "active", label: t("pages.agents.active"), n: running + waiting, tone: "info" },
             { v: "done", label: t("pages.agents.finished") },
+            { v: "hidden", label: t("pages.agents.hidden"), n: hiddenCount },
           ]}
         />
       </PageHeader>
@@ -177,6 +213,11 @@ export default function AgentsPage() {
               </button>
             ))}
           </div>
+          {tab === "hidden" ? (
+            <button type="button" disabled={!hiddenCount} onClick={() => change("unhideAll")} className="h-10 rounded-lg border border-line px-3 text-theme-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 dark:text-gray-200 dark:hover:bg-white/5">{t("pages.agents.unhideAll")}</button>
+          ) : (
+            <button type="button" disabled={!finished.length} title={t("pages.agents.hideNote")} onClick={() => change("hide", finished)} className="h-10 rounded-lg border border-line px-3 text-theme-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 dark:text-gray-200 dark:hover:bg-white/5">{t("pages.agents.hideFinished")}</button>
+          )}
           <label className="relative block">
             <span className="sr-only">{t("pages.agents.filterLabel")}</span>
             <Icon name="search" className="s14 pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -184,13 +225,14 @@ export default function AgentsPage() {
               className="dt-search h-10 w-[min(260px,70vw)] rounded-lg border border-line bg-transparent ps-9 pe-3 text-theme-sm text-gray-800 outline-none placeholder:text-gray-400 focus:border-gray-400 dark:text-white/90" />
           </label>
         </CardHead>
+        {hideErr && <p role="alert" className="px-4 pb-2 text-theme-xs text-error-600 dark:text-error-400">{t("pages.agents.hideFailed")}</p>}
         {!data ? (
           <Empty icon="loader">{error ? t("pages.agents.unreachable") : t("pages.agents.reading")}</Empty>
         ) : forest.length === 0 ? (
-          <Empty icon={tab === "active" ? "activity" : "check"}>{words.length ? t("pages.agents.noResults") : tab === "active" ? t("pages.agents.noneRunning") : t("pages.agents.none")}</Empty>
+          <Empty icon={tab === "active" ? "activity" : "check"}>{words.length ? t("pages.agents.noResults") : tab === "active" ? t("pages.agents.noneRunning") : tab === "hidden" ? t("pages.agents.noneHidden") : t("pages.agents.none")}</Empty>
         ) : (
           <div className="custom-scrollbar overflow-x-auto px-2 pb-2">
-            <table className="dt dt-stack w-full min-w-[980px]">
+            <table className="dt dt-stack w-full min-w-[1040px]">
               <thead>
                 <tr>
                   <th className="w-[26%] py-1.5 ps-3 pe-3 text-start font-medium">{t("pages.agents.colAgent")}</th>
@@ -200,11 +242,12 @@ export default function AgentsPage() {
                   <th className="px-3 py-1.5 text-start font-medium">{t("pages.agents.colBranch")}</th>
                   <th className="px-3 py-1.5 text-start font-medium">{t("pages.agents.colProgress")}</th>
                   <th className="px-3 py-1.5 text-start font-medium">{t("pages.agents.colStarted")}</th>
-                  <th className="py-1.5 ps-3 pe-3 text-start font-medium">{t("pages.agents.colLast")}</th>
+                  <th className="px-3 py-1.5 text-start font-medium">{t("pages.agents.colLast")}</th>
+                  <th className="py-1.5 ps-3 pe-3 text-end font-medium"><span className="sr-only">{t("pages.agents.colActions")}</span></th>
                 </tr>
               </thead>
               <tbody>
-                {forest.map((n) => <Row key={n.a.id} n={n} depth={0} names={names} />)}
+                {forest.map((n) => <Row key={n.a.id} n={n} depth={0} names={names} act={act} />)}
               </tbody>
             </table>
           </div>

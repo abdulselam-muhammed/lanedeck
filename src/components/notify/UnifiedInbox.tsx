@@ -1,25 +1,25 @@
 "use client";
 // The source tabs on top of the Inbox (project page and the all-projects page): All (everything, newest first, each row with
 // its avatar), AI agents (the agents' inbox, as it always was) and GitHub (your GitHub notifications as one list with filter chips).
-// Every tab carries its unread count; "Mark all read" works on the tab you are on. GitHub read state is lanedeck's own.
+// Every tab carries its unread count; "Mark all read" works on the tab you are on. GitHub read state and archive are lanedeck's own.
 import React from "react";
 import { RelTime } from "@/components/common/RelTime";
 import { Seg } from "@/components/inbox/bits";
 import { Icon } from "@/components/inbox/IconSprite";
 import { useT } from "@/context/ConfigContext";
+import type { ToastKind } from "@/components/inbox/InboxContext";
 import type { GhAnswer, GhItem } from "@/lib/notify/useNotify";
-import { GhList, GhStateNote } from "./GhParts";
+import { GhArchive, GhList, GhStateNote } from "./GhParts";
 import { AgentLine, AgentRow, DayList, GhLine, ListEmpty } from "./NotifyList";
 
-export type InboxTab = "all" | "agents" | "github";
-export const INBOX_TABS: InboxTab[] = ["all", "agents", "github"];
-export const tabOf = (v: string | null | undefined): InboxTab | null => (INBOX_TABS.includes(v as InboxTab) ? (v as InboxTab) : null);
+export type InboxTab = "all" | "agents" | "github" | "archive";
+export { INBOX_TABS, tabFromParams } from "@/lib/notify/list.mjs";
 
 /** One AI-agent row of the All tab: what the agents' inbox shows for a file, in the All list's shape. */
 export type { AgentRow };
 
-/** The tab bar: the three tabs with unread counts, then the tab's own actions. */
-export function InboxTabs({ tab, onTab, counts, children }: { tab: InboxTab; onTab: (t: InboxTab) => void; counts: { agents: number; github: number }; children?: React.ReactNode }) {
+/** The tab bar: the four tabs (the unread counts; Archive carries how many are archived, never part of All), then the tab's own actions. */
+export function InboxTabs({ tab, onTab, counts, children }: { tab: InboxTab; onTab: (t: InboxTab) => void; counts: { agents: number; github: number; archived?: number | null }; children?: React.ReactNode }) {
   const t = useT();
   return (
     <div className="mb-2.5 flex flex-wrap items-center gap-2">
@@ -27,11 +27,12 @@ export function InboxTabs({ tab, onTab, counts, children }: { tab: InboxTab; onT
         label={t("ntf.tabs.label")}
         value={tab}
         onChange={onTab}
-        className="w-full max-w-md"
+        className="w-full max-w-xl"
         items={[
           { v: "all", label: t("ntf.tabs.all"), n: counts.agents + counts.github, tone: "brand" },
           { v: "agents", label: <span className="inline-flex items-center gap-1.5"><Icon name="bot" className="s14" />{t("ntf.tabs.agents")}</span>, n: counts.agents, tone: "brand" },
           { v: "github", label: <span className="inline-flex items-center gap-1.5"><Icon name="github" className="s14" />{t("ntf.tabs.github")}</span>, n: counts.github, tone: "brand" },
+          { v: "archive", label: <span className="inline-flex items-center gap-1.5"><Icon name="archive" className="s14" />{t("inbox.archive.view")}</span>, n: counts.archived ?? undefined },
         ]}
       />
       <div className="ms-auto flex flex-wrap items-center gap-2">{children}</div>
@@ -79,8 +80,8 @@ export function GhChecked({ data, onRefresh }: { data: GhAnswer | null; onRefres
 }
 
 /** The All tab (and the AI agents tab, with gh = null): agent files and GitHub notifications in one list under day headers. */
-export function AllList({ agents, gh, failed, onRead, onUnread, empty }: {
-  agents: AgentRow[]; gh: GhAnswer | null; failed?: boolean; onRead: (ids: string[]) => void; onUnread: (ids: string[]) => void; empty?: string;
+export function AllList({ agents, gh, failed, onRead, onUnread, empty, arch }: {
+  agents: AgentRow[]; gh: GhAnswer | null; failed?: boolean; onRead: (ids: string[]) => void; onUnread: (ids: string[]) => void; empty?: string; arch?: GhArchive;
 }) {
   const t = useT();
   type Row = { key: string; at: number; agent?: AgentRow; gh?: GhItem };
@@ -92,7 +93,7 @@ export function AllList({ agents, gh, failed, onRead, onUnread, empty }: {
     <>
       <GhStateNote data={gh} failed={failed} compact />
       {rows.length ? (
-        <DayList rows={rows} render={(r) => (r.gh ? <GhLine it={r.gh} onRead={onRead} onUnread={onUnread} /> : <AgentLine a={r.agent!} />)} />
+        <DayList rows={rows} render={(r) => (r.gh ? <GhLine it={r.gh} onRead={onRead} onUnread={onUnread} onArchive={arch ? (ids) => void arch.onArchive(ids) : undefined} /> : <AgentLine a={r.agent!} />)} />
       ) : (
         <ListEmpty icon="inbox">{empty ?? t("ntf.empty.all")}</ListEmpty>
       )}
@@ -101,11 +102,21 @@ export function AllList({ agents, gh, failed, onRead, onUnread, empty }: {
 }
 
 /** The GitHub tab body. */
-export function GithubTab({ data, failed, onRead, onUnread }: { data: GhAnswer | null; failed?: boolean; onRead: (ids: string[]) => void; onUnread: (ids: string[]) => void }) {
+export function GithubTab({ data, failed, onRead, onUnread, arch }: { data: GhAnswer | null; failed?: boolean; onRead: (ids: string[]) => void; onUnread: (ids: string[]) => void; arch?: GhArchive }) {
   return (
     <>
       <GhStateNote data={data} failed={failed} />
-      {data && <GhList data={data} onRead={onRead} onUnread={onUnread} />}
+      {data && <GhList data={data} onRead={onRead} onUnread={onUnread} arch={arch} />}
     </>
   );
+}
+
+/** The GitHub archive actions with their toasts (one place for the project Inbox and the all-projects page). */
+export function useGhArchive(gh: { archive: (ids: string[]) => Promise<number>; archiveRead: () => Promise<number> }, toast: (title: string, body: string, kind?: ToastKind) => void): GhArchive {
+  const t = useT();
+  const said = (n: number) => toast(n ? t("ntf.arch.done", { n }) : t("ntf.arch.nothing"), t("ntf.arch.doneBody"), n ? "done" : "");
+  return {
+    onArchive: async (ids) => { const n = await gh.archive(ids); said(n); return n; },
+    onArchiveRead: async () => { const n = await gh.archiveRead(); said(n); return n; },
+  };
 }

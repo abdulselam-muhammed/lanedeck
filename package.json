@@ -1,6 +1,6 @@
 {
   "name": "lanedeck",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "A local control room for working with AI coding agents: CI runners, machine load, Claude Code agents, GitHub PRs and a per-project work map.",
   "license": "MIT",
   "author": "Abdulselam Muhammed",

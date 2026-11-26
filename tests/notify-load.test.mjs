@@ -35,10 +35,18 @@ test("one simulated hour: 0 tabs cost nothing, 1 and 3 tabs cost the same GitHub
   assert.deepEqual([zero.gh, zero.github, zero.budget, zero.local], [0, 0, 0, 0]);
   assert.equal(one.gh, three.gh, "the GitHub calls do not grow with the tabs");
   assert.equal(one.budget, three.budget);
-  assert.ok(one.github <= 11, `github calls ${one.github}`);
+  assert.ok(one.github <= 12, `github calls ${one.github}`); // the list, 6 comment reads, and your login once
   assert.equal(one.budget, one.github, "every 304 is refunded: only what GitHub counts stays booked");
   assert.equal(three.local, 6, "each tab reads its two scopes once, then only receives pushes");
   assert.equal(one.data, 5, "rows are pushed on the first poll and on each of the 4 changes only");
+});
+
+test("one simulated hour of real-world events: merged, closed, approved, reopened cost one read each (the reopen two), never re-read", async () => {
+  const one = await simulate(1, { scenario: "mixed" });
+  assert.ok(one.github <= 13, `github calls ${one.github}`);
+  assert.equal(one.budget, one.github);
+  // Your own merge and the close it caused are hidden (hideSelf); the others say what happened.
+  assert.deepEqual(one.rows, ["6:reopened", "5:approved", "1:comment", "2:comment"]);
 });
 
 test("nobody looking: the poller sleeps; a page wakes it, never sooner than X-Poll-Interval after the last poll", async () => {

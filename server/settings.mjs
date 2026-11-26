@@ -17,6 +17,7 @@ import crypto from "node:crypto";
 import { execFile } from "node:child_process";
 import { bin, isWin, killTree, safeSpawn } from "./platform.mjs";
 import { checkSettings, configPath, getConfig, projectById, readUserFile, reloadConfig, publicConfig, remoteAuthProblem } from "./config.mjs";
+import { changeHidden } from "./hiddenagents.mjs";
 import { addInstructions, doSetup, finishSetup, setupStatus } from "./setup.mjs";
 
 const MAX_BODY = 512 * 1024;
@@ -254,10 +255,10 @@ export function createSettings({ port, broadcast, refresh = async () => {}, relo
 
   async function handle(req, res, url, pid) {
     const p = url.pathname;
-    const route = p === "/api/settings" ? "settings" : p === "/api/settings/token" ? "token" : p === "/api/setup" ? "setup" : p === "/api/setup/instructions" ? "instructions" : p === "/api/setup/done" ? "done" : p === "/api/devices" ? "devices" : p === "/api/devices/test" ? "test" : p === "/api/projects/detect" ? "detect" : null;
+    const route = p === "/api/settings" ? "settings" : p === "/api/settings/token" ? "token" : p === "/api/setup" ? "setup" : p === "/api/setup/instructions" ? "instructions" : p === "/api/setup/done" ? "done" : p === "/api/devices" ? "devices" : p === "/api/devices/test" ? "test" : p === "/api/projects/detect" ? "detect" : p === "/api/agents/hidden" ? "hidden" : null;
     if (!route) return false;
     const method = req.method || "GET";
-    const allowed = { settings: ["GET", "PUT"], token: ["PUT"], devices: ["GET"], test: ["POST"], detect: ["POST"], setup: ["GET", "POST"], instructions: ["POST"], done: ["POST"] }[route];
+    const allowed = { settings: ["GET", "PUT"], token: ["PUT"], devices: ["GET"], test: ["POST"], detect: ["POST"], hidden: ["POST"], setup: ["GET", "POST"], instructions: ["POST"], done: ["POST"] }[route];
     if (!allowed.includes(method)) return send(res, 405, { error: "method not allowed" }), true;
     const refused = guard(req, method !== "GET");
     if (refused) return send(res, refused[0], { error: refused[1] }), true;
@@ -324,6 +325,10 @@ export function createSettings({ port, broadcast, refresh = async () => {}, relo
           : addInstructions(proj.repoPath, Array.isArray(body.files) ? body.files.map(String) : [], { create: body.create === true });
         await refresh(pid).catch(() => {});
         return send(res, 200, { ok: true, ...out, status: setupStatus(proj.repoPath, lang, proj.languages) }), true;
+      }
+      if (route === "hidden") {
+        const body = (await readBody(req)) || {};
+        return send(res, 200, { ok: true, hidden: changeHidden(body.action, body.ids) }), true;
       }
       if (route === "detect") {
         const body = await readBody(req);

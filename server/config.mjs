@@ -11,7 +11,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { isWin } from "./platform.mjs";
 import { protocolDirName } from "./protocol.mjs";
-import { SECTIONS as NOTIFY_SECTIONS } from "./notify/logic.mjs";
+import { DEFAULT_SECTIONS as NOTIFY_DEFAULT_SECTIONS, SECTIONS as NOTIFY_SECTIONS } from "./notify/logic.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const ROOT = path.join(HERE, "..");
@@ -34,8 +34,11 @@ const DEFAULTS = {
   },
   github: { org: null, rateBudgetPerHour: 1500 },
   // The Inbox's GitHub tab (server/notify/): your GitHub notifications for the linked repos. pollSeconds is a floor; GitHub's
-  // X-Poll-Interval wins when it asks for more. browser: also show a desktop notification for new items (off by default).
-  notifications: { github: { enabled: true, sections: [...NOTIFY_SECTIONS], pollSeconds: 60 }, browser: false },
+  // X-Poll-Interval wins when it asks for more. hideSelf: hide threads whose latest event is your own action (you merged,
+  // you commented); they are never unread either way. browser: also show a desktop notification for new items (off by default).
+  notifications: { github: { enabled: true, sections: [...NOTIFY_DEFAULT_SECTIONS], pollSeconds: 60, hideSelf: true }, browser: false },
+  // The machine Agents page: how far back it looks (hours: 24, 48 or 168).
+  agents: { windowHours: 48 },
   projects: [],
   ui: { lang: "en", dir: null, title: "lanedeck", brand: null, runnerPrefix: null }, // runnerPrefix: stripped from runner names in the queue pills
 };
@@ -52,6 +55,7 @@ const PROJECT_DEFAULTS = {
   reviewers: [], // [{ login, role }]
   boardFiles: [], // files whose conflicts are resolved by the reviewer, not by you
   holds: {}, // { "123": "why this PR is frozen" } (seed of data/prs/holds.json)
+  autoArchiveDays: null, // null = off; N = once a day (and at start) move inbox files not modified for N days into <inbox>/.archive/ (never ones with an unanswered question)
   languages: null, // content languages, e.g. ["en", "ar"]: the AI writes every human-facing text in all of them (project.md front matter wins)
   profile: null, // name of a profile folder (<configDir>/profiles/<name>/ or the built-in profiles/<name>/) with project-specific text
   // How the reviewer's comments are read (regex sources, case-insensitive): fail/ask = "needs work from us", pass = "approved, not a request".
@@ -132,12 +136,14 @@ function validate(c) {
   need(strOrNull(c.github.org) && (c.github.org == null || /^[\w.-]+$/.test(c.github.org)), "github.org", "must be an organisation login or null");
   need(num(c.github.rateBudgetPerHour) && c.github.rateBudgetPerHour > 0, "github.rateBudgetPerHour", "must be a positive number");
   const nt = c.notifications;
-  need(isObj(nt) && isObj(nt.github), "notifications", "must be { github: { enabled, sections, pollSeconds }, browser }");
+  need(isObj(nt) && isObj(nt.github), "notifications", "must be { github: { enabled, sections, pollSeconds, hideSelf }, browser }");
   need(typeof nt.github.enabled === "boolean", "notifications.github.enabled", "must be true or false");
   need(Array.isArray(nt.github.sections) && nt.github.sections.every((x) => NOTIFY_SECTIONS.includes(x)) && new Set(nt.github.sections).size === nt.github.sections.length,
     "notifications.github.sections", `must be a list of distinct sections: ${NOTIFY_SECTIONS.join(", ")}`);
   need(Number.isInteger(nt.github.pollSeconds) && nt.github.pollSeconds >= 30 && nt.github.pollSeconds <= 3600, "notifications.github.pollSeconds", "must be a whole number of seconds, 30-3600");
+  need(typeof nt.github.hideSelf === "boolean", "notifications.github.hideSelf", "must be true or false");
   need(typeof nt.browser === "boolean", "notifications.browser", "must be true or false");
+  need(isObj(c.agents) && [24, 48, 168].includes(c.agents.windowHours), "agents.windowHours", "must be 24, 48 or 168 (hours)");
   need(Array.isArray(c.projects), "projects", "must be an array");
   need(new Set(c.projects.map((p) => p.id)).size === c.projects.length, "projects", "ids must be unique");
   c.projects.forEach((p, i) => {
@@ -147,6 +153,7 @@ function validate(c) {
     need(p.repo == null || /^[\w.-]+\/[\w.-]+$/.test(p.repo), `${k}.repo`, 'must look like "owner/name"');
     need(strOrNull(p.repoPath) && strOrNull(p.inboxDir) && strOrNull(p.claudeProjectDir) && strOrNull(p.me) && strOrNull(p.gateCheck) && strOrNull(p.profile), k, "path, login, gateCheck and profile fields must be a string or null");
     need(isStr(p.defaultBranch) && /^[\w./-]+$/.test(p.defaultBranch), `${k}.defaultBranch`, "must be a branch name");
+    need(p.autoArchiveDays == null || (Number.isInteger(p.autoArchiveDays) && p.autoArchiveDays >= 1 && p.autoArchiveDays <= 3650), `${k}.autoArchiveDays`, "must be null (off) or a whole number of days, 1-3650");
     need(p.profile == null || /^[\w-]+$/.test(p.profile), `${k}.profile`, "must be a profile folder name (letters, digits, dashes)");
     need(p.languages == null || (Array.isArray(p.languages) && p.languages.length > 0 && p.languages.every((l) => l === "en" || l === "ar")), `${k}.languages`, 'must be null or a list of "en" / "ar"');
     need(Array.isArray(p.reviewers) && p.reviewers.every((r) => isObj(r) && isStr(r.login)), `${k}.reviewers`, "must be an array of { login, role }");
@@ -287,6 +294,7 @@ export function publicConfig() {
     github: { org: c.github.org },
     machine: { wslDistro: c.machine.wslDistro, ciContainer: c.machine.ciContainer, localLabel: c.machine.localLabel },
     ui: c.ui,
+    agents: { windowHours: c.agents.windowHours },
     profile: localize(loadProfile(), c.ui.lang),
   };
 }

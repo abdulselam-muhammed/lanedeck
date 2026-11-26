@@ -9,6 +9,9 @@ import type { GhAnswer } from "@/lib/notify/useNotify";
 import { chipCounts, chipsFor, matchChip } from "@/lib/notify/list.mjs";
 import { DayList, GhLine, ListEmpty } from "./NotifyList";
 
+/** The archive actions of a GitHub list (all local: nothing is written to GitHub). */
+export type GhArchive = { onArchive: (ids: string[]) => Promise<number> | void; onArchiveRead: () => Promise<number> | void };
+
 /** Why the GitHub rows cannot be read now (or are only the last reading), in plain words; null when all is well. */
 export function GhStateNote({ data, failed, compact }: { data: GhAnswer | null; failed?: boolean; compact?: boolean }) {
   const t = useT();
@@ -85,10 +88,12 @@ function Note({ children, icon, tone }: { children: React.ReactNode; icon: strin
   );
 }
 
-/** The GitHub tab: the filter chips, then one list of every notification under day headers. */
-export function GhList({ data, onRead, onUnread }: { data: GhAnswer; onRead: (ids: string[]) => void; onUnread: (ids: string[]) => void }) {
+/** The GitHub tab: the filter chips and the archive tools, then one list of every notification under day headers. */
+export function GhList({ data, onRead, onUnread, arch }: { data: GhAnswer; onRead: (ids: string[]) => void; onUnread: (ids: string[]) => void; arch?: GhArchive }) {
   const t = useT();
   const [chip, setChip] = useState<Chip>("all");
+  const [sel, setSel] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
   if (data.state.code === "disabled" || data.state.code === "norepos") return null;
   // GitHub could not be read at all: the note above says why, so no empty list that looks like an empty inbox.
   if (!data.items.length && ["scope", "auth", "nogh"].includes(data.state.code)) return null;
@@ -98,6 +103,10 @@ export function GhList({ data, onRead, onUnread }: { data: GhAnswer; onRead: (id
   const on = chips.includes(chip) ? chip : "all";
   const n = chipCounts(data.items) as Record<Chip, number>;
   const rows = data.items.filter((it) => matchChip(it, on)).map((it) => ({ ...it, key: it.id, at: Date.parse(it.at), it }));
+  const readN = data.items.filter((it) => !it.unread).length;
+  const pickedIds = rows.filter((r) => picked.has(r.id)).map((r) => r.id);
+  const toggle = (id: string) => setPicked((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const archiveIds = async (ids: string[]) => { if (arch && ids.length) { await arch.onArchive(ids); setPicked(new Set()); } };
   return (
     <>
       <div role="toolbar" aria-label={t("ntf.chips.label")} className="mb-2.5 flex flex-wrap items-center gap-1.5">
@@ -118,13 +127,35 @@ export function GhList({ data, onRead, onUnread }: { data: GhAnswer; onRead: (id
             {n[c] > 0 && <span className={`tnum text-[11px] ${on === c ? "text-brand-600 dark:text-brand-300" : "text-gray-400 dark:text-gray-500"}`}>{n[c]}</span>}
           </button>
         ))}
+        {arch && (
+          <span className="ms-auto flex flex-wrap items-center gap-1.5">
+            <button type="button" className={`btn ${sel ? "btn-tonal" : "btn-ghost"}`} aria-pressed={sel} onClick={() => { setSel(!sel); setPicked(new Set()); }}>
+              <Icon name="list-checks" className="s14" />{t(sel ? "inbox.archive.selectDone" : "inbox.archive.select")}
+            </button>
+            <button type="button" className="btn btn-ghost" disabled={!readN} title={t("ntf.arch.tip")} onClick={() => arch.onArchiveRead()}>
+              <Icon name="archive" className="s14" />{t("ntf.arch.readBtn")}
+            </button>
+          </span>
+        )}
       </div>
+      {arch && sel && (
+        <div role="region" aria-label={t("ntf.arch.action")} className="mb-2.5 flex flex-wrap items-center gap-2 rounded-lg border border-line/70 bg-strip/50 px-3 py-2">
+          <label className="flex items-center gap-1.5 text-theme-xs text-gray-600 dark:text-gray-300">
+            <input type="checkbox" checked={rows.length > 0 && pickedIds.length === rows.length} disabled={!rows.length} onChange={(e) => setPicked(e.target.checked ? new Set(rows.map((r) => r.id)) : new Set())} />
+            {t("inbox.archive.selectAll")}
+          </label>
+          <span className="text-theme-xs font-medium text-gray-600 tnum dark:text-gray-300">{t("inbox.archive.selected", { n: pickedIds.length })}</span>
+          <button type="button" className="btn btn-tonal ms-auto" disabled={!pickedIds.length} onClick={() => archiveIds(pickedIds)}>
+            <Icon name="archive" className="s14" />{t("inbox.archive.selectedBtn")}
+          </button>
+        </div>
+      )}
       {rows.length ? (
-        <DayList rows={rows} render={(r) => <GhLine it={r.it} onRead={onRead} onUnread={onUnread} />} />
+        <DayList rows={rows} render={(r) => <GhLine it={r.it} onRead={onRead} onUnread={onUnread} onArchive={arch ? archiveIds : undefined} pick={arch && sel ? { checked: picked.has(r.id), toggle: () => toggle(r.id) } : undefined} />} />
       ) : (
         <ListEmpty icon="check-check">{t(on === "unread" ? "ntf.empty.unread" : "ntf.empty.chip")}</ListEmpty>
       )}
     </>
   );
 }
-type Chip = "all" | "unread" | "mentions" | "replies" | "reviews" | "assigned" | "status";
+type Chip = "all" | "unread" | "mentions" | "replies" | "reviews" | "assigned" | "status" | "other";

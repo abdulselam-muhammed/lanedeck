@@ -62,8 +62,8 @@ What was done, what was checked, what is left.
 | Answers | The human writes `**Answer:** ...` (or `**الجواب:** ...`) under the question. A question with an answer line is *answered, waiting for the AI*. The AI handles it, then removes the whole question block. |
 | Result | `## Result` holds the final report when the task is finished. |
 | Setup | `00-setup.md` is the setup item (shown first, not counted as work). |
-| Ignored | Files starting with `_` and everything inside `inbox/_archive/`. |
-| Archiving | The human archives a finished task by moving its file to `inbox/_archive/` (the dashboard does this only for `00-setup.md`). An AI agent never moves, renames or archives a task file. |
+| Ignored | Files starting with `_`, everything inside `inbox/_archive/`, and the whole `inbox/.archive/` folder (reserved for the dashboard's archive; never read, never write there). |
+| Archiving | The human archives a finished task from the dashboard (Inbox: Archive, or the optional automatic rule), which MOVES the file into `inbox/.archive/YYYY-MM/` with a small manifest so it can be restored to the exact same place. Nothing is ever deleted. (The dashboard also moves a finished `00-setup.md` to `inbox/_archive/`.) An AI agent never moves, renames or archives a task file, and never reads or writes in `inbox/.archive/`. |
 
 A question without an answer line is *open*: it appears under "Questions" as waiting for the human.
 
@@ -189,5 +189,5 @@ translations is shown as written, in any interface language. `**Answer:**` lines
 4. One file per task. Do not mix tasks, and do not rename a task file while it is running.
 5. Keep `## Steps` current as you work; it is the progress the human sees.
 6. Remove an answered question block once you have acted on it, and record the outcome in `## Result`.
-7. Do not move, rename or archive inbox files, including `00-setup.md`: archiving is done by the human (and, for the setup file only, by the dashboard).
+7. Do not move, rename or archive inbox files, including `00-setup.md`: archiving is done by the human or by the dashboard's optional rule. Leave `inbox/.archive/` alone.
 8. Never write secrets into any of these files.

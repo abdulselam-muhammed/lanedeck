@@ -15,7 +15,8 @@
 //   GET /api/p/:p/snapshot the project's inbox files + its live agents (cached, rebuilt on every change)
 //   GET /api/p/:p/branch[?pull=1]  our last pull of origin/<defaultBranch> vs the branch on GitHub
 //   GET /api/p/:p/events   SSE, the one live channel of a project page: snapshot, inbox, agents, ci.runners, branch, notify.*, ping
-//   GET /api/agents        the agents of EVERY project under ~/.claude/projects (48 h, capped), each tagged with its project or "other"
+//   GET /api/agents        the agents of EVERY project under ~/.claude/projects (agents.windowHours, default 48 h, capped), each tagged with its project or "other"; `hidden`: ids hidden from the list
+//   POST /api/agents/hidden  { action: hide|unhide|unhideAll, ids } -> the hidden list in <config folder>/hidden-agents.json (local-only, CSRF; Claude Code files untouched)
 //   GET /api/machine       per-project counters for the machine overview + the shared GitHub budget
 //   GET /api/skills        the plugin skills (plugin/skills/*/SKILL.md: name, description, body), read on every call
 //   GET /api/ci/*          the CI runners panel (server/ci/http.mjs): read-only, same process and port
@@ -23,6 +24,7 @@
 //   GET /api/load          machine load: CPU/RAM/disk, grouped processes, WSL docker, ETA (server/load/load.mjs): read-only
 //   GET /api/prs/*, WS /api/prs/ws   the PR control board (server/prs/board.mjs): read-only
 //   GET /api/p/:p/notify   the Inbox's GitHub tab (server/notify/notify.mjs): read-only on GitHub; POST .../notify/read keeps the local read state;
+//                          POST .../notify/archive and .../notify/restore keep the local archive (nothing is written to GitHub);
 //                          the rows also ride the SSE channel (notify.data / notify.state), so the pages do not poll this
 //   GET /api/p/:p/mine     "Your work": your issues, your PRs (from the board), what is asked of you (server/mine/mine.mjs): read-only
 import { createServer } from "node:http";
@@ -77,6 +79,7 @@ const ci = createCi({ root: DATA_ROOT });
 const { createPrs } = await import("./prs/board.mjs");
 const prs = createPrs({ root: DATA_ROOT, firstId: FIRST, projectOf: projectById });
 const { createMine } = await import("./mine/mine.mjs");
+const { createArchiveApi } = await import("./archive.mjs");
 const mine = createMine({ boardOf: prs.boardOf, projectOf: projectById });
 // The Inbox's GitHub tab: one poller for every linked repo, awake only while a page is connected (it sleeps at 0 pages and a
 // connecting page wakes it). Its rows are pushed to the pages as the sticky `notify.data` / `notify.state` events
@@ -108,6 +111,7 @@ const app = next({ dev, dir: ROOT, hostname: HOST, port: PORT });
 const handle = app.getRequestHandler();
 await app.prepare();
 
+const archiveApi = createArchiveApi({ inbox: (id) => inbox.getInbox(id) });
 const json = (res, body) => {
   res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
   res.end(JSON.stringify(body));
@@ -136,13 +140,14 @@ const server = createServer(async (req, res) => {
     }
     if (url.pathname.startsWith("/api/ci/") && (await ci(req, res, url))) return;
     if (url.pathname.startsWith("/api/prs/") && (await prs.handle(req, res, url, pid))) return;
+    if (url.pathname.startsWith("/api/archive") && (await archiveApi.handle(req, res, url, pid))) return;
     if (url.pathname === "/api/mine" && (await mine.handle(req, res, url, pid))) return;
     if (url.pathname.startsWith("/api/notify") && (await notify.handle(req, res, url, pid))) return;
     if (req.method === "GET" && url.pathname === "/api/agents") return json(res, await inbox.allAgents());
     if (req.method === "GET" && url.pathname === "/api/skills") return json(res, { skills: await listSkills() });
     if (req.method === "GET" && url.pathname === "/api/machine") return json(res, { projects: inbox.summaries(), github: githubUsage(), now: Date.now() });
     if (url.pathname === "/api/load" && ((await remote.handle(req, res, url)) || (await load.handle(req, res, url)))) return;
-    if ((url.pathname === "/api/settings" || url.pathname === "/api/settings/token" || url.pathname === "/api/devices" || url.pathname.startsWith("/api/devices/") || url.pathname === "/api/projects/detect") && (await settings.handle(req, res, url))) return;
+    if ((url.pathname === "/api/settings" || url.pathname === "/api/settings/token" || url.pathname === "/api/devices" || url.pathname.startsWith("/api/devices/") || url.pathname === "/api/projects/detect" || url.pathname === "/api/agents/hidden") && (await settings.handle(req, res, url))) return;
     // setup writes into a project: only through the explicit /api/p/<id>/setup form, never the first-project alias
     if ((url.pathname === "/api/setup" || url.pathname === "/api/setup/instructions" || url.pathname === "/api/setup/done") && url !== url0 && (await settings.handle(req, res, url, pid))) return;
     if (req.method === "GET" && url.pathname === "/api/config") return json(res, publicConfig());

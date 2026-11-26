@@ -6,7 +6,7 @@ export type ReviewMarkers = { fail: string[]; ask: string[]; pass: string[] };
 export type ProjectCfg = {
   id: string; name: string; repoPath: string | null; repo: string | null; defaultBranch: string; gateCheck: string | null;
   inboxDir: string | null; claudeProjectDir: string | null; me: string | null; reviewers: Reviewer[]; reviewMarkers: ReviewMarkers;
-  boardFiles: string[]; holds: Record<string, string>; profile: string | null; languages?: ("en" | "ar")[] | null;
+  boardFiles: string[]; holds: Record<string, string>; profile: string | null; languages?: ("en" | "ar")[] | null; autoArchiveDays?: number | null;
 };
 export type MachineCfg = { id: string; label?: string; sshAlias?: string; ssh?: string };
 export type Thresholds = { ram: number; cpu: number; disk: number; pagedPoolGB?: number };
@@ -18,7 +18,8 @@ export type Settings = {
     thresholds: Thresholds; remoteThresholds: Thresholds; machines: MachineCfg[];
   };
   github: { org: string | null; rateBudgetPerHour: number };
-  notifications: { github: { enabled: boolean; sections: string[]; pollSeconds: number }; browser: boolean };
+  notifications: { github: { enabled: boolean; sections: string[]; pollSeconds: number; hideSelf: boolean }; browser: boolean };
+  agents: { windowHours: 24 | 48 | 168 };
   projects: ProjectCfg[];
   ui: { lang: "ar" | "en"; dir: "rtl" | "ltr"; title: string; brand: string | null; runnerPrefix: string | null };
   [k: string]: unknown;
